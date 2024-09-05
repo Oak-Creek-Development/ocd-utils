@@ -7,16 +7,3 @@ composer.phar
 
 # Node.js dependencies
 node_modules/
-
-# Npm or Yarn lock files
-package-lock.json
-yarn.lock
-
-# Production build files (e.g., Webpack or similar)
-dist/
-
-# Environment variables
-.env
-
-# Logs and temporary files
-npm-debug.log*
