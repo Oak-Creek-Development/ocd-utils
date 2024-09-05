@@ -1,5 +1,23 @@
 <?php
 
+if ( ! function_exists( 'ocd_parse_config_for_default_values' ) ) {
+	function ocd_parse_config_for_default_values( $config ) {
+		$config = (array) $config;
+		if ( isset( $config['sections'] ) && is_array( $config['sections'] ) ) $config = $config['sections'];
+
+		$defaults = array();
+		foreach ( $config as $section ) {
+			if ( isset( $section['fields'] ) && is_array( $section['fields'] ) ) {
+				foreach ( $section['fields'] as $field ) {
+					if ( isset( $field['default'] ) ) $defaults[$field['id']] = $field['default'];
+				}
+			}
+		}
+
+		return $defaults;
+	}
+}
+
 if ( ! function_exists( 'ocd_find_package_json_in_parent_dirs' ) ) {
 	function ocd_find_package_json_in_parent_dirs( $dir ) {
 		$dir = trailingslashit( $dir );
@@ -36,7 +54,7 @@ if ( ! function_exists( 'ocd_nodejs_dependency_version' ) ) {
 		if ( empty( $package ) ) return false;
 
 		// Try to get the cached version from a transient
-		$transient_key = 'lmg_' . md5( $package ) . '_version';
+		$transient_key = 'ocd_' . md5( $package ) . '_version';
 		$package_version = get_transient( $transient_key );
 
 		if ( false !== $package_version ) {

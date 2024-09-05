@@ -24,6 +24,13 @@ class OCD_ExampleComponent {
 	private $slug = '';
 
 	/**
+	 * Holds the default values defined in this file to be used if a field's setting is not set.
+	 *
+	 * @var array
+	 */
+	private $defaults = array();
+
+	/**
 	 * Holds the current options for the current component retrieved from the database.
 	 *
 	 * @var array
@@ -32,30 +39,30 @@ class OCD_ExampleComponent {
 
 	public function __construct() {
 		$this->slug = basename( __FILE__, '.php' );
+		$this->config();
 
-		if ( is_admin() ) {
-			add_filter( 'ocdutils_settings_config', array( $this, 'add_settings_page' ) );
-		}
-
-		add_action( 'init', array( $this, 'init' ) );
-	}
-
-	public function init() {
 		add_shortcode( 'ocd_example_component', array( $this, 'ocd_example_component_shortcode' ) );
 	}
 	
 	private function get_options() {
-		if ( empty( $this->options ) ) $this->options = get_option( $this->slug, array() );
+		if ( empty( $this->options ) ) {
+			$this->options = get_option( $this->slug, array() );
+		}
+
+		if ( ! empty( $this->defaults ) ) {
+			$diff = array_diff_key( $this->defaults, $this->options );
+			$this->options = array_merge( $this->options, $diff );
+		}
+
 		return $this->options;
 	}
 
 	public function ocd_example_component_shortcode( $atts ) {
-		//phpinfo();
 		$options = $this->get_options();
 
 		// Set default attributes for the shortcode
 		$atts = shortcode_atts( array(
-			'color' => $options['color'] ?? 'blue',
+			'color' => $options['color'],
 			'class' => '',
 		), $atts, 'ocd_example_component' );
 
@@ -106,12 +113,12 @@ class OCD_ExampleComponent {
 			});
 		</script>
 		<?php
-		return ob_get_clean();
+		return str_replace( array( '<script type="text/javascript">', '</script>' ), '', ob_get_clean() );
 	}
 
-	public function add_settings_page( $settings_config_r ) {
+	private function config() {
 		// Add your fields here
-		$settings_config_r['components'][] = array(
+		$config = array(
 			'slug' => $this->slug,
 			'label' => esc_html( __( 'Example', 'ocdutils' ) ), // Tab name
 			'sections' => array(
@@ -124,9 +131,9 @@ class OCD_ExampleComponent {
 							'label' => 'Box color',
 							'type' => 'select',
 							'description' => esc_html( __( 'Default color of the box.', 'ocdutils' ) ),
-							// TODO: This only populates the default in the settings page. It doesn't actually apply as a default setting in the output until after the settings are saved
-							'default' => 'lime',
+							'default' => 'orchid',
 							'options' => array(
+								''             => 'None',
 								'teal'         => 'Teal',
 								'purple'       => 'Purple',
 								'orange'       => 'Orange',
@@ -194,7 +201,14 @@ class OCD_ExampleComponent {
 			),
 		);
 
-		return $settings_config_r;
+		$this->defaults = ocd_parse_config_for_default_values( $config['sections'] );
+
+		if ( is_admin() ) {
+			add_filter( 'ocdutils_settings_config', function( $settings_config_r ) use ( $config ) { 
+				$settings_config_r['components'][] = $config;
+				return $settings_config_r;
+			} );
+		}
 	}
 
 	private function usage_instructions() {
