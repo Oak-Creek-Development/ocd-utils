@@ -1,0 +1,23 @@
+{
+  "name": "ocd-utils",
+  "version": "1.0.0",
+  "description": "Provides a collection of useful stuff for WordPress.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Oak-Creek-Development/ocd-utils.git"
+  },
+  "author": "Oak Creek Development",
+  "license": "GPL-2.0",
+  "bugs": {
+    "url": "https://github.com/Oak-Creek-Development/ocd-utils/issues"
+  },
+  "homepage": "https://github.com/Oak-Creek-Development/ocd-utils#readme",
+  "dependencies": {
+    "@glidejs/glide": "^3.6.2",
+    "vanilla-tilt": "^1.8.1"
+  }
+}
