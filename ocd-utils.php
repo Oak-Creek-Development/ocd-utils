@@ -3,13 +3,13 @@
 	Plugin Name: OCD Utils
 	Plugin URI: https://www.oakcreekdev.com/
 	Description: Provides a collection of useful stuff for WordPress.
-	Author: Jeremy Kozan
+	Author: Oak Creek Development
 	Author URI: https://www.oakcreekdev.com/
-	Requires at least: 5.1
-	Tested up to: 5.9
+	Requires at least: 6.0
+	Tested up to: 6.6.1
 	Stable tag: 1.0.1
 	Version: 1.0.1
-	Requires PHP: 7.1
+	Requires PHP: 7.4
 	Text Domain: ocdutils
 	Domain Path: /languages
 	License: GPL v2 or later
@@ -34,30 +34,61 @@
 
 if ( ! defined( 'ABSPATH' ) ) die();
 
+/**
+ * Class OCD_Utils
+ *
+ * Main plugin class for OCD Utils.
+ */
 if ( ! class_exists( 'OCD_Utils' ) ) :
+
 class OCD_Utils {
+	/**
+	 * Holds the plugin options from the database.
+	 *
+	 * @var array
+	 */
 	private $options = array();
 	
+	/**
+	 * Constructor.
+	 * Initializes constants and loads the main plugin components.
+	 */
 	public function __construct() {
-		$this->constants();
+		$this->define_constants();
 		require_once( OCD_UTILS_DIR . 'includes/functions.php' );
-		add_action( 'plugins_loaded', array( $this, 'init' ) );
+
+		add_action( 'plugins_loaded', array( $this, 'setup_config' ) );
 	}
 	
-	private function constants() {
+	/**
+	 * Define plugin constants.
+	 */
+	private function define_constants() {
 		if ( ! defined( 'OCD_UTILS_NAME' ) ) define( 'OCD_UTILS_NAME', 'OCD Utils' );
 		if ( ! defined( 'OCD_UTILS_DIR' ) ) define( 'OCD_UTILS_DIR', trailingslashit( plugin_dir_path( __FILE__ ) ) );
 		if ( ! defined( 'OCD_UTILS_URL' ) ) define( 'OCD_UTILS_URL', trailingslashit( plugin_dir_url( __FILE__ ) ) );
 	}
 
+	/**
+	 * Get the saved plugin options.
+	 *
+	 * @return array Plugin options.
+	 */
 	private function get_options() {
-		if ( empty( $this->options ) ) $this->options = get_option( 'ocd_utils_settings', array() );
+		if ( empty( $this->options ) ) {
+			// Retrieve saved options from the database
+			$this->options = get_option( 'ocd_utils_settings', array() );
+		}
 		return $this->options;
 	}
 
-	public function init() {
+	/**
+	 * Setup the plugin components and settings configs.
+	 */
+	public function setup_config() {
 		$options = $this->get_options();
 
+		// Configuration array for plugin settings
 		$settings_config_r = array( 
 			'page_slug' => 'ocdutils', 
 			'capability' => 'manage_options', 
@@ -67,6 +98,7 @@ class OCD_Utils {
 			'components' => array(), 
 		);
 
+		// Add the component config for this self and main general admin settings page tab
 		$settings_config_r['components'][] = array(
 			'slug' => 'ocd_utils_settings', 
 			'label' => esc_html( __( 'General', 'ocdutils' ) ), 
@@ -97,12 +129,12 @@ class OCD_Utils {
 			), 
 		) );
 
+		// Load active components based on saved settings
 		if ( ! empty( $options['active_components'] ) ) {
 			foreach ( $options['active_components'] as $component ) {
-				if ( 'example_component' === $component ) {
-					if ( ! in_array( 'example_component', array_keys( $settings_config_r['components'][0]['sections'][0]['fields'][0]['options'] ) ) ) {
-						continue;
-					}
+				// Check if the example component is commented out above or not. Only want to show the example component when it is deliberately uncommented in this file.
+				if ( 'example_component' === $component && ! array_key_exists( 'example_component', $settings_config_r['components'][0]['sections'][0]['fields'][0]['options'] ) ) {
+					continue;
 				}
 
 				$file_path = OCD_UTILS_DIR . 'components/'. $component .'/'. $component .'.php';
@@ -110,11 +142,13 @@ class OCD_Utils {
 				if ( is_readable( $file_path ) ) {
 					require_once( $file_path );
 				} else {
+					// Display an admin notice if the component file is missing
 					add_action( 'admin_notices', function() use ( $component ) {
-						echo '<div class="notice notice-error"><p>';
-						echo esc_html( "OCD Utils: The component file for '$component' is missing or not readable." );
-						echo '</p></div>';
-					});
+						printf(
+							'<div class="notice notice-error"><p>%s</p></div>',
+							esc_html( sprintf( __( "OCD Utils: The component file for '%s' is missing or not readable.", 'ocdutils' ), $component ) )
+						);
+					} );
 				}
 			}
 		}
@@ -123,6 +157,7 @@ class OCD_Utils {
 			// Allow components to modify the settings config via this filter
 			$settings_config_r = apply_filters( 'ocdutils_settings_config', $settings_config_r );
 
+			// Load the admin settings handler
 			require_once( OCD_UTILS_DIR . 'includes/class-ocd-settings.php' );
 			$OCD_AdminSettings = new OCD_AdminSettings( $settings_config_r );
 		}
@@ -133,6 +168,10 @@ class OCD_Utils {
 	}
 	
 }
+
+// Instantiate the main class.
 $OCD_Utils = new OCD_Utils();
+
 endif;
+
 ?>
