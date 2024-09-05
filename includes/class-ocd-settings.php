@@ -10,11 +10,12 @@ if ( ! defined( 'ABSPATH' ) ) die();
 /**
  * Class OCD_AdminSettings
  *
- * Manages the admin settings page and handles the registration of settings.
+ * Handles the rendering of the admin settings page and manages settings registration.
  *
  * @since 1.0.0
  */
 if ( ! class_exists( 'OCD_AdminSettings' ) ) :
+
 class OCD_AdminSettings {
    /**
     * Holds the configuration array.
@@ -37,21 +38,38 @@ class OCD_AdminSettings {
     */
 	private $options = array();
 
-   public function __construct( $config ) {
+	/**
+	 * Constructor for OCD_AdminSettings.
+	 *
+	 * @param array $config Configuration array for settings.
+	 */
+	public function __construct( $config ) {
 		$this->config = $config;
 
-      if ( empty( $_GET['tab'] ) ) {
-			$this->component = $this->config['components'][0]; // Default to the first component
-		} else {
-			foreach ( $this->config['components'] as $component ) {
-				if ( $component['slug'] != $_GET['tab'] ) continue;
-				$this->component = $component;
-				break;
-			}
-		}
+		// Sanitize the 'tab' query parameter to avoid malicious input
+		$current_tab = isset( $_GET['tab'] ) ? sanitize_text_field( $_GET['tab'] ) : '';
+
+		// Set the current component based on the selected tab, default to the first component
+		$this->component = empty( $current_tab ) ? $this->config['components'][0] : $this->get_component_by_slug( $current_tab );
 
 		add_action( 'admin_menu', array( $this, 'admin_menu' ) );
 		add_action( 'admin_init', array( $this, 'admin_init' ) );
+	}
+
+	/**
+	 * Retrieves a component configuration by its slug.
+	 *
+	 * @param string $slug Component slug.
+	 * @return array|null Component configuration or null if not found.
+	 */
+	private function get_component_by_slug( $slug ) {
+		foreach ( $this->config['components'] as $component ) {
+			if ( $component['slug'] === $slug ) {
+				return $component;
+			}
+		}
+		
+		return null;
 	}
 
    /**
@@ -75,11 +93,15 @@ class OCD_AdminSettings {
     * @since 1.0.0
     */
 	public function admin_init() {
-		if ( ! current_user_can( $this->config['capability'] ) ) return; // Bail if the user doesn't have the required capability
+		if ( ! current_user_can( $this->config['capability'] ) ) {
+			return; // Bail if the user doesn't have the required capability
+		}
 		
       // Register settings for each component
 		foreach ( $this->config['components'] as $component ) {
-			if ( empty( $component['slug'] ) ) continue;
+			if ( empty( $component['slug'] ) ) {
+				continue;
+			}
 
          $component_setting_args_r = array( 
             'type' => 'array', 
@@ -97,9 +119,11 @@ class OCD_AdminSettings {
          );
 		}
 
-      // Add settings sections and fields
+      // Add sections and fields for the current component
 		foreach ( $this->component['sections'] as $section ) {
-			if ( empty( $section['id'] ) ) continue;
+			if ( empty( $section['id'] ) ) {
+				continue;
+			}
 
 			add_settings_section(
 				$section['id'],
@@ -108,16 +132,19 @@ class OCD_AdminSettings {
 				$this->component['slug']
 			);
 
+			// Add fields for the current section
 			if ( isset( $section['fields'] ) ) {
 				foreach ( $section['fields'] as $field ) {
-					if ( empty( $field['id'] ) ) continue;
+					if ( empty( $field['id'] ) ) {
+						continue;
+					}
 
 					$field['label_for'] = $field['id'];
 
 					add_settings_field(
 						$field['id'],
 						$field['label'],
-						array( $this, 'render_field_' . $field['type'] ), // Callback to generate the field
+						array( $this, 'render_field_' . $field['type'] ), // Callback to generate the field html
 						$this->component['slug'],
 						$section['id'],
 						$field // Config array passed to the callback
@@ -133,41 +160,63 @@ class OCD_AdminSettings {
     * @since 1.0.0
     */
 	public function render_settings_page() {
-		if ( ! current_user_can( $this->config['capability'] ) ) return; // Bail if the user doesn't have the required capability
+		if ( ! current_user_can( $this->config['capability'] ) ) {
+			return; // Bail if the user doesn't have the required capability
+		}
 
-		?>
-		<div class="wrap">
-			<h1><?php echo $this->config['page_title']; ?></h1>
-			<h2 class="nav-tab-wrapper">
-				<?php
-				foreach ( $this->config['components'] as $tab ) {
-					if ( empty( $tab['slug'] ) ) continue;
-					echo '<a href="?page='. $this->config['page_slug'] .'&tab='. $tab['slug'] .'" class="nav-tab'. ( $this->component['slug'] == $tab['slug'] ? ' nav-tab-active' : '' ) .'">'. $tab['label'] .'</a>';
-				}
-				?>
-			</h2>
-			<form method="post" action="options.php">
-				<?php
+		echo '<div class="wrap">';
+			echo '<h1>'. esc_html( $this->config['page_title'] ) .'</h1>';
+
+			// Display tabs if there are multiple components
+			if ( count( $this->config['components'] ) > 1 ) {
+				echo '<h2 class="nav-tab-wrapper">';
+					foreach ( $this->config['components'] as $tab ) {
+						if ( ! empty( $tab['slug'] ) ) {
+							$href = '?page='. esc_attr( $this->config['page_slug'] ) .'&tab='. esc_attr( $tab['slug'] );
+							$class = 'nav-tab '. ( $this->component['slug'] == $tab['slug'] ? 'nav-tab-active' : '' );
+							echo '<a href="'. $href .'" class="'. $class .'">'. esc_html( $tab['label'] ) .'</a>';
+						}
+					}
+				echo '</h2>';
+			}
+
+			echo '<form method="post" action="options.php">';
 				settings_fields( $this->component['slug'] ); // Output nonce, action, and option_page fields
 				do_settings_sections( $this->component['slug'] ); // Output sections and their fields
 				submit_button(); // Render the submit button
-				?>
-			</form>
-		</div>
-		<?php
+			echo '</form>';
+		echo '</div>';
 	}
 
-   private function get_option() {
+	/**
+	 * Retrieves the options for the current component.
+	 *
+	 * @return array Component options.
+	 */
+	private function get_options() {
 		if ( empty( $this->options ) ) {
-         $this->options = (array) get_option( $this->component['slug'] );
-      }
+			$this->options = (array) get_option( $this->component['slug'] );
+		}
+
 		return $this->options;
 	}
 
+	/**
+	 * Retrieves the value for a specific field.
+	 *
+	 * @param array $field The field configuration array.
+	 * @return mixed Field value or default value.
+	 */
 	private function get_val( $field ) {
-      return $this->get_option()[$field['id']] ?? '';
+      return $this->get_options()[$field['id']] ?? '';
 	}
 	
+	/**
+	 * Generates field attributes for input elements.
+	 *
+	 * @param array $field Field configuration.
+	 * @return string Field attributes as a string.
+	 */
 	private function field_atts( $field ) {
 		$atts  = '';
 		$atts .= ' id="'. esc_attr( $field['id'] ) .'"';
@@ -181,116 +230,187 @@ class OCD_AdminSettings {
 		return $atts;
 	}
 	
+	/**
+	 * Generates input field html for type: text.
+	 *
+	 * @param array $field Field configuration.
+	 * @return string Input field html as a string.
+	 */
 	public function render_field_text( $field ) {
 		$val = $this->get_val( $field );
-		if ( empty( $val ) && ! empty( $field['default'] ) ) $val = $field['default'];
+		if ( empty( $val ) && isset( $field['default'] ) ) {
+			$val = $field['default'];
+		}
 
 		$atts = $this->field_atts( $field );
 		$atts .= empty( $val ) ? '' : ' value="'. esc_html( $val ) .'"';
 	
 		echo '<input type="text"'. $atts .' />';
 
-		if ( ! empty( $field['description'] ) ) echo '<p class="description">'. $field['description'] .'</p>';
+		if ( ! empty( $field['description'] ) ) echo '<p class="description">'. esc_html( $field['description'] ) .'</p>';
 	}
 	
+	/**
+	 * Generates input field html for type: number.
+	 *
+	 * @param array $field Field configuration.
+	 * @return string Input field html as a string.
+	 */
 	public function render_field_number( $field ) {
 		$val = $this->get_val( $field );
-		if ( empty( $val ) && ! empty( $field['default'] ) ) $val = $field['default'];
+		if ( empty( $val ) && isset( $field['default'] ) ) {
+			$val = $field['default'];
+		}
 	
-		$field['class'] = trim( 'small-text ' . ( $field['class'] ?? '' ) );
+		$field['class'] = trim( 'small-text ' . esc_attr( ( $field['class'] ?? '' ) ) );
 	
 		$atts = $this->field_atts( $field );
 		$atts .= empty( $val ) ? '' : ' value="'. esc_html( $val ) .'"';
 	
 		echo '<input type="number"'. $atts .' />';
 
-		if ( ! empty( $field['description'] ) ) echo '<p class="description">'. $field['description'] .'</p>';
+		if ( ! empty( $field['description'] ) ) echo '<p class="description">'. esc_html( $field['description'] ) .'</p>';
 	}
 	
+	/**
+	 * Generates input field html for type: select.
+	 *
+	 * @param array $field Field configuration.
+	 * @return string Input field html as a string.
+	 */
 	public function render_field_select( $field ) {
 		$val = $this->get_val( $field );
-		if ( empty( $val ) && isset( $field['default'] ) && in_array( $field['default'], array_keys( $field['options'] ) ) ) $val = $field['default'];
+		if ( empty( $val ) && isset( $field['default'] ) && array_key_exists( $field['default'], $field['options'] ) ) {
+			$val = $field['default'];
+		}
 	
 		$atts = $this->field_atts( $field );
 	
 		echo '<select'. $atts .'>';
 		foreach ( $field['options'] as $k => $v ) {
-			echo '<option value="'. $k .'" '. selected( $k, $val, false ) .'>'. $v .'</option>';
+			echo '<option value="'. esc_attr( $k ) .'" '. selected( $k, $val, false ) .'>'. esc_html( $v ) .'</option>';
 		}
 		echo '</select>';
 
-		if ( ! empty( $field['description'] ) ) echo '<p class="description">'. $field['description'] .'</p>';
+		if ( ! empty( $field['description'] ) ) echo '<p class="description">'. esc_html( $field['description'] ) .'</p>';
 	}
 	
+	/**
+	 * Generates input field html for type: checkboxes.
+	 *
+	 * @param array $field Field configuration.
+	 * @return string Input field html as a string.
+	 */
 	public function render_field_checkboxes( $field ) {
 		$val = $this->get_val( $field );
-		if ( empty( $val ) && isset( $field['default'] ) && in_array( $field['default'], array_keys( $field['options'] ) ) ) $val = $field['default'];
-	
-      echo '<fieldset><legend class="screen-reader-text"><span>'. $field['label'] .'</span></legend>';
-		foreach ( $field['options'] as $k => $v ) {
-         $name = $this->component['slug'] .'['. $field['id'] .']';
-         $id = $name . $k;
-         $checked = is_array( $val ) && in_array( $k, $val ) ? ' checked="checked"' : '';
-
-			echo '<label for="'. $id .'">';
-			   echo '<input type="checkbox" name="'. $name .'[]" id="'. $id .'" value="'. $k .'"'. $checked .' />';
-			echo $v . '</label><br />';
+		if ( empty( $val ) && isset( $field['default'] ) && array_key_exists( $field['default'], $field['options'] ) ) {
+			$val = $field['default'];
 		}
-      echo '</fieldset>';
+	
+      echo '<fieldset><legend class="screen-reader-text"><span>'. esc_html( $field['label'] ) .'</span></legend>';
+			foreach ( $field['options'] as $k => $v ) {
+				$name = $this->component['slug'] .'['. $field['id'] .']';
+				$id = $name . $k;
+				$checked = is_array( $val ) && in_array( $k, $val ) ? ' checked="checked"' : '';
 
-		if ( ! empty( $field['description'] ) ) echo '<p class="description">'. $field['description'] .'</p>';
+				echo '<label for="'. esc_attr( $id ) .'">';
+					echo '<input type="checkbox" name="'. esc_attr( $name ) .'[]" id="'. esc_attr( $id ) .'" value="'. esc_attr( $k ) .'"'. $checked .' />';
+				echo esc_html( $v ) . '</label><br />';
+			}
+			if ( ! empty( $field['description'] ) ) echo '<p class="description">'. esc_html( $field['description'] ) .'</p>';
+      echo '</fieldset>';
+	}
+	
+	/**
+	 * Generates input field html for type: radio.
+	 *
+	 * @param array $field Field configuration.
+	 * @return string Input field html as a string.
+	 */
+	public function render_field_radio( $field ) {
+		$val = $this->get_val( $field );
+		if ( empty( $val ) && isset( $field['default'] ) && array_key_exists( $field['default'], $field['options'] ) ) {
+			$val = $field['default'];
+		}
+	
+      echo '<fieldset><legend class="screen-reader-text"><span>'. esc_html( $field['label'] ) .'</span></legend>';
+			echo '<p>';
+				foreach ( $field['options'] as $k => $v ) {
+					$name = $this->component['slug'] .'['. $field['id'] .']';
+					$required = empty( $field['required'] ) ? '' : ' required="required"';
+					$checked = isset( $val ) && $k === $val ? ' checked="checked"' : '';
+
+					echo '<label>';
+						echo '<input type="radio" name="'. esc_attr( $name ) .'" value="'. esc_attr( $k ) .'"'. $checked . $required .' />';
+					echo esc_html( $v ) . '</label><br />';
+				}
+			echo '</p>';
+			if ( ! empty( $field['description'] ) ) echo '<p class="description">'. esc_html( $field['description'] ) .'</p>';
+      echo '</fieldset>';
 	}
 
-   public function sanitize_array( $r ) {
-      if ( empty( $_POST['option_page'] ) ) return $r;
+	/**
+	 * Sanitize array values before saving.
+	 *
+	 * @param array $data Array of settings data.
+	 * @return array Sanitized data.
+	 */
+	public function sanitize_array( $r ) {
+		if ( empty( $_POST['option_page'] ) ) {
+			return $r;
+		}
 
-      // Ensure the input is an array
-      if ( ! is_array( $r ) ) return $r;
+		// Ensure the input is an array
+		if ( ! is_array( $r ) ) {
+			return $r;
+		}
 
-      $fields = array();
-      foreach ( $this->config['components'] as $component ) {
-         if ( $component['slug'] == $_POST['option_page'] && isset( $component['fields'] ) ) {
-            $fields = $component['fields'];
-            break;
-         }
-      }
+		$fields = array();
+		foreach ( $this->config['components'] as $component ) {
+			if ( $component['slug'] == $_POST['option_page'] && isset( $component['fields'] ) ) {
+				$fields = $component['fields'];
+				break;
+			}
+		}
 
-      // Sanitize each element in the array
-      foreach ( $r as $k => $v ) {
-         foreach ( $fields as $field ) {
-            if ( $k == $field['id'] ) {
-               if ( 'number' == $field['type'] ) {
-                  if ( is_numeric( $v ) ) {
-                     $r[$k] = strpos( $v, '.' ) === false ? intval( $v ) : floatval( $v );
-                  } else {
-                     $r[$k] = 0;
-                  }
-               } elseif ( 'select' == $field['type'] ) {
-                  $allowed_values = array_keys( $field['options'] ) ?: array();
-                  if ( in_array( $v, $allowed_values ) ) {
-                     $r[$k] = $v;
-                  } else {
-                     $r[$k] = '';
-                  }
-               } elseif ( 'checkboxes' == $field['type'] ) {
-                  $r[$k] = array();
-                  $allowed_values = array_keys( $field['options'] ) ?: array();
-                  foreach ( $v as $val ) {
-                     if ( in_array( $val, $allowed_values ) ) {
-                        $r[$k][] = $val;
-                     }
-                  }
-               } else {
-                  $r[$k] = sanitize_text_field( $v );
-               }
-               break;
-            }
-         }
-      }
+		// Sanitize each element in the array
+		foreach ( $r as $k => $v ) {
+			foreach ( $fields as $field ) {
+				if ( $k == $field['id'] ) {
+					if ( 'number' == $field['type'] ) {
+						if ( is_numeric( $v ) ) {
+							$r[$k] = strpos( $v, '.' ) === false ? intval( $v ) : floatval( $v );
+						} else {
+							$r[$k] = 0;
+						}
+					} elseif ( 'select' == $field['type'] ) {
+						$allowed_values = array_keys( $field['options'] ) ?: array();
+						if ( in_array( $v, $allowed_values ) ) {
+							$r[$k] = $v;
+						} else {
+							$r[$k] = '';
+						}
+					} elseif ( 'checkboxes' == $field['type'] ) {
+						$r[$k] = array();
+						$allowed_values = array_keys( $field['options'] ) ?: array();
+						foreach ( $v as $val ) {
+							if ( in_array( $val, $allowed_values ) ) {
+								$r[$k][] = $val;
+							}
+						}
+					} else {
+						$r[$k] = sanitize_text_field( $v );
+					}
 
-      return $r;
-   }
+					break;
+				}
+			}
+		}
+
+		return $r;
+	}
 }
+
 endif;
 
 ?>

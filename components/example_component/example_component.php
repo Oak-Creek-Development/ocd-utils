@@ -233,6 +233,19 @@ class OCD_ExampleComponent {
 							'step' => 4,
 						),
 						array(
+							'id' => 'radio_a',
+							'label' => 'Food',
+							'type' => 'radio',
+							'description' => esc_html( __( 'Choose your favorite food.', 'ocdutils' ) ),
+							'default' => 'soup',
+							'options' => array(
+								'hot_dog' => 'Hot Dog',
+								'hamburger' => 'Hamburger',
+								'soup' => 'Soup',
+								'spaghetti' => 'Spaghetti',
+							),
+						),
+						array(
 							'id' => 'checkboxes_a',
 							'label' => 'Colors',
 							'type' => 'checkboxes',
