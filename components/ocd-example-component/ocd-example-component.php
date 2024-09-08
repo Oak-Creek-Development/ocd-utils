@@ -22,7 +22,14 @@ class OCD_ExampleComponent {
 	 *
 	 * @var string
 	 */
-	private $slug = '';
+	public $slug = '';
+
+	/**
+	 * Holds the array of values for the component's config and settings fields.
+	 *
+	 * @var array
+	 */
+	private $config = array();
 
 	/**
 	 * Holds the default values for the component's fields, used when specific settings are not configured.
@@ -36,7 +43,7 @@ class OCD_ExampleComponent {
 	 *
 	 * @var array
 	 */
-	private $options = array();
+	public $options = array();
 
 	/**
 	 * Constructor to initialize the component.
@@ -46,7 +53,7 @@ class OCD_ExampleComponent {
 		$this->config(); // Load component configuration.
 
 		// Register the shortcode [ocd_example_component].
-		add_shortcode( 'ocd_example_component', array( $this, 'ocd_example_component_shortcode' ) );
+		add_shortcode( 'ocd_example_component', array( $this, 'shortcode' ) );
 	}
 
 	/**
@@ -55,8 +62,8 @@ class OCD_ExampleComponent {
 	 * @param array $atts Shortcode attributes.
 	 * @return string HTML output of the component.
 	 */
-	public function ocd_example_component_shortcode( $atts ) {
-		$options = $this->get_options();
+	public function shortcode( $atts ) {
+		$options = ocd_get_options( $this );
 
 		// Set default shortcode attributes, overriding with any provided.
 		$atts = shortcode_atts( array(
@@ -135,27 +142,30 @@ class OCD_ExampleComponent {
 
 
 
-	
-	
-	/**
-	 * Retrieves the current options/settings from the database.
-	 *
-	 * @return array The current options for this component.
-	 */
-	private function get_options() {
-		// Fetch options from the database if not already loaded.
-		if ( empty( $this->options ) ) {
-			$this->options = get_option( $this->slug, array() );
-		}
 
-		// Merge any default values with the retrieved options.
-		if ( ! empty( $this->defaults ) ) {
-			$diff = array_diff_key( $this->defaults, $this->options );
-			$this->options = array_merge( $this->options, $diff );
-		}
 
-		return $this->options;
-	}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -175,8 +185,40 @@ class OCD_ExampleComponent {
 	 * Configures the settings for this component.
 	 */
 	private function config() {
-		// Define the component's configuration, including admin page fields and default settings.
-		$config = array(
+		$this->config = $this->define_config_r();
+
+		// Register this component's settings.
+		ocd_register_settings( $this->config );
+	}
+
+	/**
+	 * Generates the usage instructions for the settings page.
+	 *
+	 * @return string HTML for usage instructions.
+	 */
+	private function usage_instructions() {
+		ob_start();
+		?>
+		<div>
+			<h4>Options</h4>
+			<p>The above settings are global; they apply uniformly across all instances of this component output.</p>
+			<h4>Shortcode</h4>
+			<p>This example provides a shortcode with 2 options: <code>[ocd_example_component color="red" class="my-special-class"]</code></p>
+			<p>The shortcode attributes can be used to configure the output on a per-instance basis.</p>
+			<p>Omit all attributes to output the default configuration specified in the global settings above: <code>[ocd_example_component]</code></p>
+			<br /><br />
+		</div>
+		<?php
+		return ob_get_clean();
+	}
+
+	/**
+	 * Returns the config array.
+	 *
+	 * @return array The component's config values and settings fields.
+	 */
+	private function define_config_r() {
+		return array(
 			'slug' => $this->slug,
 			'label' => esc_html( __( 'Example', 'ocdutils' ) ), // Tab name in the settings page.
 			'sections' => array(
@@ -283,38 +325,6 @@ class OCD_ExampleComponent {
 				// Additional sections can be defined here.
 			),
 		);
-
-		// Parse default values from the configuration and store it to be used later when the Admin settings options are loaded from the database.
-		$this->defaults = ocd_parse_config_for_default_values( $config['sections'] );
-
-		// If in the admin area, register this component's settings.
-		if ( is_admin() ) {
-			add_filter( 'ocdutils_settings_config', function( $settings_config_r ) use ( $config ) { 
-				$settings_config_r['components'][] = $config;
-				return $settings_config_r;
-			} );
-		}
-	}
-
-	/**
-	 * Generates the usage instructions for the settings page.
-	 *
-	 * @return string HTML for usage instructions.
-	 */
-	private function usage_instructions() {
-		ob_start();
-		?>
-		<div>
-			<h4>Options</h4>
-			<p>The above settings are global; they apply uniformly across all instances of this component output.</p>
-			<h4>Shortcode</h4>
-			<p>This example provides a shortcode with 2 options: <code>[ocd_example_component color="red" class="my-special-class"]</code></p>
-			<p>The shortcode attributes can be used to configure the output on a per-instance basis.</p>
-			<p>Omit all attributes to output the default configuration specified in the global settings above: <code>[ocd_example_component]</code></p>
-			<br /><br />
-		</div>
-		<?php
-		return ob_get_clean();
 	}
 }
 endif;

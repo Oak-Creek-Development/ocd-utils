@@ -1,4 +1,5 @@
 <?php
+
 /**
  * OCD_UpcomingEvents Class.
  *
@@ -11,52 +12,68 @@ if ( ! defined( 'ABSPATH' ) ) die();
  * Class OCD_UpcomingEvents
  *
  * Generates a carousel of upcoming events.
+ * Provides a shortcode with configurable attributes and a settings page in Admin.
  *
  * @since 1.0.0
  */
 if ( ! class_exists( 'OCD_UpcomingEvents' ) ) :
 class OCD_UpcomingEvents {
+	/**
+	 * Holds the slug of the component (the base name of the PHP file).
+	 *
+	 * @var string
+	 */
+	public $slug = '';
+
+	/**
+	 * Holds the array of values for the component's config and settings fields.
+	 *
+	 * @var array
+	 */
+	private $config = array();
+
+	/**
+	 * Holds the default values for the component's fields, used when specific settings are not configured.
+	 *
+	 * @var array
+	 */
+	private $defaults = array();
+
+	/**
+	 * Holds the current options/settings for this component, retrieved from the database.
+	 *
+	 * @var array
+	 */
+	public $options = array();
+
+	/**
+	 * Constructor to initialize the component.
+	 */
 	public function __construct() {
-		$this->init();
+		$this->slug = basename( __FILE__, '.php' ); // Set the slug to the base filename (without .php extension)
+		$this->config(); // Load component configuration.
+
+		// Register the shortcode [ocd_upcoming_events_carousel].
+		add_shortcode( 'ocd_upcoming_events_carousel', array( $this, 'shortcode' ) );
 	}
 
-	public function init() {
-		add_filter( 'ocdutils_settings_config', array( $this, 'add_settings_page' ) );
-		add_shortcode( 'ocd_upcoming_events', array( $this, 'ocd_upcoming_events_shortcode' ) );
-	}
+	/**
+	 * Shortcode handler for rendering the component.
+	 *
+	 * @param array $atts Shortcode attributes.
+	 * @return string HTML output of the component.
+	 */
+	public function shortcode( $atts ) {
+		//$options = ocd_get_options( $this );
 
-	public function add_settings_page( $settings_config ) {
-		$settings_config['components'][] = array(
-			'slug' => 'upcoming_events_carousel',
-			'label' => 'Upcoming Events Carousel',
-			'sections' => array(
-				array(
-					'id' => 'divi_projects_portfolio_section',
-					'label' => 'Portfolio Settings',
-					'fields' => array(
-					array(
-						'id' => 'portfolio_items_per_page',
-						'label' => 'Items per Page',
-						'type' => 'number',
-						'description' => 'Set the number of portfolio items per page.',
-					),
-					),
-				),
-			),
-		);
-
-		return $settings_config;
-	}
-
-	public function ocd_upcoming_events_shortcode( $atts ) {
 		$no_events_str = '<p>'. __( 'No Upcoming Events', 'ocdutils' ) .'</p>';
-	
+
 		// Check if Event Espresso is active
 		if ( ! class_exists( 'EE_Registry' ) ) {
 			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) return '<p>'. __( 'Event Espresso is not active or installed.', 'ocdutils' ) .'</p>';
 			return $no_events_str;
 		}
-	
+
 		// Set default attributes for the shortcode
 		$atts = shortcode_atts( array(
 			'class'       => '',            // Additional class for the carousel
@@ -64,23 +81,23 @@ class OCD_UpcomingEvents {
 			'limit'       => 7,             // Number of events to display
 			'nav_arrows'  => 'true',        // Show navigation arrows
 			'nav_bullets' => 'true',        // Show navigation bullets
-		), $atts, 'ocd_upcoming_events' );
-	
+		), $atts, 'ocd_upcoming_events_carousel' );
+
 		// Sanitize and process attributes
 		$atts['class'] = sanitize_text_field( $atts['class'] );
 		if ( ! empty( $atts['class'] ) ) $atts['class'] = ' ' . $atts['class'];
-	
+
 		$atts['title_tag'] = sanitize_text_field( $atts['title_tag'] );
-	
+
 		// Convert nav arrows and bullets attributes to boolean
 		$show_nav_arrows = filter_var( sanitize_text_field( $atts['nav_arrows'] ), FILTER_VALIDATE_BOOLEAN );
 		$show_nav_bullets = filter_var( sanitize_text_field( $atts['nav_bullets'] ), FILTER_VALIDATE_BOOLEAN );
-	
+
 		// Unique ID for each carousel instance
 		static $shortcode_i = -1;
 		$shortcode_i++;
-		$shortcode_id = 'lmg_events_' . $shortcode_i;
-	
+		$shortcode_id = 'ocd_events_' . $shortcode_i;
+
 		// Query events from Event Espresso if not cached
 		$events = EE_Registry::instance()->load_model( 'Event' )->get_all( array(
 			array(
@@ -93,65 +110,65 @@ class OCD_UpcomingEvents {
 			'group_by' => 'EVT_ID',
 		) );
 		if ( 1 > count( $events ) ) return $no_events_str;
-	
+
 		// Enqueue dependencies
-		$glide_dir = trailingslashit( get_stylesheet_directory_uri() ) . 'node_modules/@glidejs/glide/dist/';
+		$glide_dir = OCD_UTILS_URL . 'node_modules/@glidejs/glide/dist/';
 		$glide_version = ocd_nodejs_dependency_version( '@glidejs/glide' );
 		wp_enqueue_style( 'glidejs',       $glide_dir . 'css/glide.core.min.css',  array(), $glide_version, 'all' );
 		wp_enqueue_style( 'glidejs-theme', $glide_dir . 'css/glide.theme.min.css', array(), $glide_version, 'all' );
 		wp_enqueue_script( 'glidejs',      $glide_dir . 'glide.min.js',            array(), $glide_version, array( 'strategy' => 'defer', 'in_footer' => true ) );
 		wp_add_inline_script( 'glidejs', $this->inline_script( $shortcode_id ) );
-	
+
 		$event_i = -1;
 		foreach ( $events as $post_id => $event ) {
 			if ( ! $event instanceof EE_Event ) continue;
 			$event_i++;
-	
+
 			$event_name = esc_html( $event->name() );
 			$date_time  = $event->first_datetime();
 			$start_date = $date_time->start_date( 'M. d, Y' );
 			$end_date   = $date_time->end_date( 'M. d, Y' );
-	
+
 			$post_thumbnail = get_the_post_thumbnail( $post_id, 'medium', array( 'loading' => 'lazy' ) );
 			if ( empty( $post_thumbnail ) ) {
-				$post_thumbnail = '<img src="'. trailingslashit( get_stylesheet_directory_uri() ) .'lmg-event-placeholder.png" alt="'. $event_name .'" />';
+				$post_thumbnail = '<img src="'. OCD_UTILS_URL .'components/upcoming_events_carousel/event-placeholder.png" alt="'. $event_name .'" />';
 			}
-	
+
 			// Build list item HTML
-			$list_items .= '<li class="lmg-event-item glide__slide">';
-				$list_items .= '<article aria-labelledby="lmg-event-'. $shortcode_i . '-' . $event_i .'-title">';
-	
-					$list_items .= '<a class="lmg-event-thumbnail" href="'. esc_url( get_permalink( $post_id ) ) .'" title="'. $event_name .'">';
+			$list_items .= '<li class="ocd-event-item glide__slide">';
+				$list_items .= '<article aria-labelledby="ocd-event-'. $shortcode_i . '-' . $event_i .'-title">';
+
+					$list_items .= '<a class="ocd-event-thumbnail" href="'. esc_url( get_permalink( $post_id ) ) .'" title="'. $event_name .'">';
 						$list_items .= $post_thumbnail;
 					$list_items .= '</a>';
-	
-					$list_items .= '<'. $atts['title_tag'] .' id="lmg-event-'. $shortcode_i . '-' . $event_i .'-title" class="lmg-event-title">';
+
+					$list_items .= '<'. $atts['title_tag'] .' id="ocd-event-'. $shortcode_i . '-' . $event_i .'-title" class="ocd-event-title">';
 						$list_items .= '<a href="'. esc_url( get_permalink( $post_id ) ) .'" title="'. $event_name .'">'. $event_name .'</a>';
 					$list_items .= '</'. $atts['title_tag'] .'>';
-	
-					$list_items .= '<p class="lmg-event-dates">';
+
+					$list_items .= '<p class="ocd-event-dates">';
 						$list_items .= '<time datetime="'. date( 'Y-m-d\TH:i:s', strtotime( $start_date .', '. $date_time->start_time() ) ) .'">'. $start_date .'</time>';
 						$list_items .= $start_date === $end_date ? '' : ' - <time datetime="'. date( 'Y-m-d\TH:i:s', strtotime( $end_date .', '. $date_time->end_time() ) ) .'">'. $end_date .'</time>';
 					$list_items .= '</p>';
-	
-					$list_items .= '<p class="lmg-event-description">'. esc_html( get_the_excerpt( $post_id ) ) .'</p>';
-	
+
+					$list_items .= '<p class="ocd-event-description">'. esc_html( get_the_excerpt( $post_id ) ) .'</p>';
+
 				$list_items .= '</article>';
 			$list_items .= '</li>';
-	
+
 			// Build bullets HTML for navigation
 			$bullets .= '<button class="glide__bullet" data-glide-dir="='. $event_i .'"><span aria-hidden="true">'. $event_i .'</span></button>';
 		}
-	
+
 		// Build the final HTML structure for the carousel
-		$html .= '<div id="'. $shortcode_id .'" class="lmg_events'. $atts['class'] .'">';
-	
+		$html .= '<div id="'. $shortcode_id .'" class="ocd_events'. $atts['class'] .'">';
+
 			$html .= '<div class="glide__track" data-glide-el="track">';
 				$html .= '<ul class="glide__slides">';
 					$html .= $list_items;
 				$html .= '</ul>';
 			$html .= '</div>';
-	
+
 			// Add navigation arrows if enabled
 			if ( $show_nav_arrows ) {
 				$html .= '<div class="glide__arrows" data-glide-el="controls">';
@@ -165,19 +182,25 @@ class OCD_UpcomingEvents {
 					$html .= '</button>';
 				$html .= '</div>';
 			}
-	
+
 			// Add navigation bullets if enabled
 			if ( $show_nav_bullets ) {
 				$html .= '<div class="glide__bullets" data-glide-el="controls[nav]">';
 					$html .= $bullets;
 				$html .= '</div>';
 			}
-	
+
 		$html .= '</div>';
-	
+
 		return $html;
 	}
 
+	/**
+	 * Generates the inline JavaScript for the component.
+	 *
+	 * @param string $id The unique ID of the component instance.
+	 * @return string The inline JavaScript code.
+	 */
 	private function inline_script( $id ) {
 		ob_start();
 		?>
@@ -209,9 +232,112 @@ class OCD_UpcomingEvents {
 			});
 		</script>
 		<?php
+		// Keep script tags above just to make the code look nice in the editor, remove script tags before output.
+		return str_replace( array( '<script type="text/javascript">', '</script>' ), '', ob_get_clean() );
+	}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	/**
+	 * Configures the settings for this component.
+	 */
+	private function config() {
+		$this->config = $this->define_config_r();
+
+		// Register this component's settings.
+		ocd_register_settings( $this->config );
+	}
+
+	/**
+	 * Generates the usage instructions for the settings page.
+	 *
+	 * @return string HTML for usage instructions.
+	 */
+	private function usage_instructions() {
+		ob_start();
+		?>
+		<div>
+			<!-- <h4>Shortcode</h4> -->
+			<p>Tsdg adfg ddaf sfwfga: <code>[ocd_upcoming_events_carousel k="v"]</code></p>
+			<br /><br />
+		</div>
+		<?php
 		return ob_get_clean();
+	}
+
+	/**
+	 * Returns the config array.
+	 *
+	 * @return array The component's config values and settings fields.
+	 */
+	private function define_config_r() {
+		return array(
+			'slug' => $this->slug,
+			'label' => esc_html( __( 'Events Carousel', 'ocdutils' ) ), // Tab name in the settings page.
+			'sections' => array(
+				array(
+					'id' => 'usage',
+					'label' => esc_html( __( 'Shortcocde Instructions', 'ocdutils' ) ),
+					'description' => $this->usage_instructions(),
+				),
+				// Additional sections can be defined here.
+			),
+		);
 	}
 }
 endif;
+
+// Instantiate the component class.
 $OCD_UpcomingEvents = new OCD_UpcomingEvents();
+
 ?>

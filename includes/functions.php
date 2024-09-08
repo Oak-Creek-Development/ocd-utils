@@ -1,51 +1,52 @@
 <?php
 
 /**
- * Parses the configuration array and extracts default values for each field.
+ * Retrieves the current options/settings from the database.
  *
- * This function takes a component's configuration array, navigates through its sections and fields,
- * and collects the default values for each field into a single array keyed by the field's ID
- * and matching the format of how options/settings are stored in the database.
- *
- * @param array $config The configuration array containing sections and fields.
- * @return array An array of default values, where the keys are field IDs and the values are their defaults.
+ * @param object $component The component object for which to fetch the options array.
+ * @return array The current options for this component (with defaults in place if option is not set).
  */
-if ( ! function_exists( 'ocd_parse_config_for_default_values' ) ) {
-	function ocd_parse_config_for_default_values( $config ) {
-		// Cast the input configuration to an array to ensure it's iterable.
-		$config = (array) $config;
-
-		// Check if the configuration has a 'sections' key, and if so, set $config to the sections array.
-		// This way it doesn't matter if you pass in the full component config, or just the 'sections' array of the config
-		if ( isset( $config['sections'] ) && is_array( $config['sections'] ) ) {
-			$config = $config['sections'];
+if ( ! function_exists( 'ocd_get_options' ) ) {
+	function ocd_get_options( $component ) {
+		// Fetch options from the database if not already loaded.
+		if ( empty( $component->options ) ) {
+			$component->options = (array) get_option( $component->slug, array() );
 		}
 
-		// Initialize an empty array to hold the default values.
-		$defaults = array();
+		// Merge any default values with the retrieved options.
+		/*if ( ! empty( $component->defaults ) ) {
+			$diff = array_diff_key( $component->defaults, $component->options );
+			$component->options = array_merge( $component->options, $diff );
+		}*/
 
-		// Loop through all sections and fields to find any default values 
-		// and store them in an array that matches the format of how options/settings are stored in the database.
-		foreach ( $config as $section ) {
-			if ( isset( $section['fields'] ) && is_array( $section['fields'] ) ) {
-				foreach ( $section['fields'] as $field ) {
-					if ( isset( $field['default'] ) ) {
-						$defaults[$field['id']] = $field['default'];
-					}
-				}
-			}
-		}
-
-		return $defaults;
+		return $component->options;
 	}
 }
 
 /**
-* Recursively searches parent directories for a package.json file and returns its content.
-*
-* @param string $dir The starting directory for the search.
-* @return string|false The content of package.json if found, otherwise false.
-*/
+ * Retrieves the current options/settings from the database.
+ *
+ * @param object $component The component object for which to fetch the options array.
+ * @return array The current options for this component (with defaults in place if option is not set).
+ */
+if ( ! function_exists( 'ocd_register_settings' ) ) {
+	function ocd_register_settings( $config ) {
+		if ( ! is_admin() ) return;
+
+		// Add this component's config array to the main config array.
+		add_filter( 'ocdutils_settings_config', function( $settings_config_r ) use ( $config ) { 
+			$settings_config_r['components'][] = $config;
+			return $settings_config_r;
+		} );
+	}
+}
+
+/**
+ * Recursively searches parent directories for a package.json file and returns its content.
+ *
+ * @param string $dir The starting directory for the search.
+ * @return string|false The content of package.json if found, otherwise false.
+ */
 if ( ! function_exists( 'ocd_find_package_json_in_parent_dirs' ) ) {
 	function ocd_find_package_json_in_parent_dirs( $dir ) {
 		// Ensure the directory path ends with a slash.
@@ -87,12 +88,12 @@ if ( ! function_exists( 'ocd_find_package_json_in_parent_dirs' ) ) {
 }
 
 /**
-* Retrieves the version of a Node.js dependency from package.json.
-*
-* @param string $package The name of the package to retrieve.
-* @param string|null $project_dir The directory where package.json resides. Defaults to plugin directory.
-* @return string|false The version of the package if found, otherwise false.
-*/
+ * Retrieves the version of a Node.js dependency from package.json.
+ *
+ * @param string $package The name of the package to retrieve.
+ * @param string|null $project_dir The directory where package.json resides. Defaults to plugin directory.
+ * @return string|false The version of the package if found, otherwise false.
+ */
 if ( ! function_exists( 'ocd_nodejs_dependency_version' ) ) {
 	function ocd_nodejs_dependency_version( $package, $project_dir = null ) {
 		if ( empty( $package ) ) {

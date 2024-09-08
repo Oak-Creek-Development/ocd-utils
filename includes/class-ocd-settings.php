@@ -97,58 +97,62 @@ class OCD_AdminSettings {
 			return; // Bail if the user doesn't have the required capability
 		}
 		
-      // Register settings for each component
-		foreach ( $this->config['components'] as $component ) {
-			if ( empty( $component['slug'] ) ) {
-				continue;
+      // Register settings for each component.   TODO: probably ok to register only the current component but I'll leave this alone for now.
+		if ( isset( $this->config['components'] ) && is_array( $this->config['components'] ) ) {
+			foreach ( $this->config['components'] as $component ) {
+				if ( empty( $component['slug'] ) ) {
+					continue;
+				}
+
+				$component_setting_args_r = array( 
+					'type' => 'array', 
+					'sanitize_callback' => array( $this, 'sanitize_array' ) ,
+				);
+				if ( ! empty( $component['label']        ) ) $component_setting_args_r['label']        = $component['label'];       // TODO: figure out if I need to do anything to handle this if it is set
+				if ( ! empty( $component['description']  ) ) $component_setting_args_r['description']  = $component['description']; // TODO: figure out if I need to do anything to handle this if it is set
+				if ( ! empty( $component['show_in_rest'] ) ) $component_setting_args_r['show_in_rest'] = $component['show_in_rest'];
+				if ( ! empty( $component['default']      ) ) $component_setting_args_r['default']      = $component['default'];
+
+				register_setting(	
+					$component['slug'], 
+					$component['slug'], 
+					$component_setting_args_r
+				);
 			}
-
-         $component_setting_args_r = array( 
-            'type' => 'array', 
-            'sanitize_callback' => array( $this, 'sanitize_array' ) ,
-         );
-         if ( ! empty( $component['label']        ) ) $component_setting_args_r['label']        = $component['label'];       // TODO: figure out if I need to do anything to handle this if it is set
-         if ( ! empty( $component['description']  ) ) $component_setting_args_r['description']  = $component['description']; // TODO: figure out if I need to do anything to handle this if it is set
-         if ( ! empty( $component['show_in_rest'] ) ) $component_setting_args_r['show_in_rest'] = $component['show_in_rest'];
-         if ( ! empty( $component['default']      ) ) $component_setting_args_r['default']      = $component['default'];
-
-			register_setting(	
-            $component['slug'], 
-            $component['slug'], 
-            $component_setting_args_r
-         );
 		}
 
       // Add sections and fields for the current component
-		foreach ( $this->component['sections'] as $section ) {
-			if ( empty( $section['id'] ) ) {
-				continue;
-			}
+		if ( isset( $this->component['sections'] ) && is_array( $this->component['sections'] ) ) {
+			foreach ( $this->component['sections'] as $section ) {
+				if ( empty( $section['id'] ) ) {
+					continue;
+				}
 
-			add_settings_section(
-				$section['id'],
-				$section['label'],
-				function() use ( $section ) { echo isset( $section['description'] ) ? $section['description'] : ''; },
-				$this->component['slug']
-			);
+				add_settings_section(
+					$section['id'],
+					$section['label'],
+					function() use ( $section ) { echo isset( $section['description'] ) ? $section['description'] : ''; },
+					$this->component['slug']
+				);
 
-			// Add fields for the current section
-			if ( isset( $section['fields'] ) ) {
-				foreach ( $section['fields'] as $field ) {
-					if ( empty( $field['id'] ) ) {
-						continue;
+				// Add fields for the current section
+				if ( isset( $section['fields'] ) ) {
+					foreach ( $section['fields'] as $field ) {
+						if ( empty( $field['id'] ) ) {
+							continue;
+						}
+
+						$field['label_for'] = $field['id'];
+
+						add_settings_field(
+							$field['id'],
+							$field['label'],
+							array( $this, 'render_field_' . $field['type'] ), // Callback to generate the field html
+							$this->component['slug'],
+							$section['id'],
+							$field // Config array passed to the callback
+						);
 					}
-
-					$field['label_for'] = $field['id'];
-
-					add_settings_field(
-						$field['id'],
-						$field['label'],
-						array( $this, 'render_field_' . $field['type'] ), // Callback to generate the field html
-						$this->component['slug'],
-						$section['id'],
-						$field // Config array passed to the callback
-					);
 				}
 			}
 		}
@@ -174,6 +178,7 @@ class OCD_AdminSettings {
 						if ( ! empty( $tab['slug'] ) ) {
 							$href = '?page='. esc_attr( $this->config['page_slug'] ) .'&tab='. esc_attr( $tab['slug'] );
 							$class = 'nav-tab '. ( $this->component['slug'] == $tab['slug'] ? 'nav-tab-active' : '' );
+							
 							echo '<a href="'. $href .'" class="'. $class .'">'. esc_html( $tab['label'] ) .'</a>';
 						}
 					}
@@ -238,9 +243,9 @@ class OCD_AdminSettings {
 	 */
 	public function render_field_text( $field ) {
 		$val = $this->get_val( $field );
-		if ( empty( $val ) && isset( $field['default'] ) ) {
-			$val = $field['default'];
-		}
+		// if ( empty( $val ) && isset( $field['default'] ) ) {
+		// 	$val = $field['default'];
+		// }
 
 		$atts = $this->field_atts( $field );
 		$atts .= empty( $val ) ? '' : ' value="'. esc_html( $val ) .'"';
@@ -258,9 +263,9 @@ class OCD_AdminSettings {
 	 */
 	public function render_field_number( $field ) {
 		$val = $this->get_val( $field );
-		if ( empty( $val ) && isset( $field['default'] ) ) {
-			$val = $field['default'];
-		}
+		// if ( empty( $val ) && isset( $field['default'] ) ) {
+		// 	$val = $field['default'];
+		// }
 	
 		$field['class'] = trim( 'small-text ' . esc_attr( ( $field['class'] ?? '' ) ) );
 	
@@ -280,9 +285,9 @@ class OCD_AdminSettings {
 	 */
 	public function render_field_select( $field ) {
 		$val = $this->get_val( $field );
-		if ( empty( $val ) && isset( $field['default'] ) && array_key_exists( $field['default'], $field['options'] ) ) {
-			$val = $field['default'];
-		}
+		// if ( empty( $val ) && isset( $field['default'] ) && array_key_exists( $field['default'], $field['options'] ) ) {
+		// 	$val = $field['default'];
+		// }
 	
 		$atts = $this->field_atts( $field );
 	
@@ -303,9 +308,9 @@ class OCD_AdminSettings {
 	 */
 	public function render_field_checkboxes( $field ) {
 		$val = $this->get_val( $field );
-		if ( empty( $val ) && isset( $field['default'] ) && array_key_exists( $field['default'], $field['options'] ) ) {
-			$val = $field['default'];
-		}
+		// if ( empty( $val ) && isset( $field['default'] ) && array_key_exists( $field['default'], $field['options'] ) ) {
+		// 	$val = $field['default'];
+		// }
 	
       echo '<fieldset><legend class="screen-reader-text"><span>'. esc_html( $field['label'] ) .'</span></legend>';
 			foreach ( $field['options'] as $k => $v ) {
@@ -329,9 +334,9 @@ class OCD_AdminSettings {
 	 */
 	public function render_field_radio( $field ) {
 		$val = $this->get_val( $field );
-		if ( empty( $val ) && isset( $field['default'] ) && array_key_exists( $field['default'], $field['options'] ) ) {
-			$val = $field['default'];
-		}
+		// if ( empty( $val ) && isset( $field['default'] ) && array_key_exists( $field['default'], $field['options'] ) ) {
+		// 	$val = $field['default'];
+		// }
 	
       echo '<fieldset><legend class="screen-reader-text"><span>'. esc_html( $field['label'] ) .'</span></legend>';
 			echo '<p>';

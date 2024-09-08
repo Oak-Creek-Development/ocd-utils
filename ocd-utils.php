@@ -43,21 +43,29 @@ if ( ! class_exists( 'OCD_Utils' ) ) :
 
 class OCD_Utils {
 	/**
+	 * Holds the slug of the component (the base name of the PHP file).
+	 *
+	 * @var string
+	 */
+	public $slug = '';
+
+	/**
 	 * Holds the plugin options from the database.
 	 *
 	 * @var array
 	 */
-	private $options = array();
+	public $options = array();
 	
 	/**
 	 * Constructor.
 	 * Initializes constants and loads the main plugin components.
 	 */
 	public function __construct() {
+		$this->slug = basename( __FILE__, '.php' ); // Set the slug to the base filename (without .php extension)
 		$this->define_constants();
 		require_once( OCD_UTILS_DIR . 'includes/functions.php' );
 
-		add_action( 'plugins_loaded', array( $this, 'setup_config' ) );
+		add_action( 'plugins_loaded', array( $this, 'config' ) );
 	}
 	
 	/**
@@ -70,23 +78,10 @@ class OCD_Utils {
 	}
 
 	/**
-	 * Get the saved plugin options.
-	 *
-	 * @return array Plugin options.
-	 */
-	private function get_options() {
-		if ( empty( $this->options ) ) {
-			// Retrieve saved options from the database
-			$this->options = get_option( 'ocd_utils_settings', array() );
-		}
-		return $this->options;
-	}
-
-	/**
 	 * Setup the plugin components and settings configs.
 	 */
-	public function setup_config() {
-		$options = $this->get_options();
+	public function config() {
+		$options = ocd_get_options( $this );
 
 		// Configuration array for plugin settings
 		$settings_config_r = array( 
@@ -100,7 +95,7 @@ class OCD_Utils {
 
 		// Add the component config for this self and main general admin settings page tab
 		$settings_config_r['components'][] = array(
-			'slug' => 'ocd_utils_settings', 
+			'slug' => $this->slug,
 			'label' => esc_html( __( 'General', 'ocdutils' ) ), 
 			'sections' => array(), 
 		);
@@ -111,29 +106,36 @@ class OCD_Utils {
 			'label' => esc_html( __( 'Active Components', 'ocdutils' ) ), 
 			'fields' => array(
 				array(
-					'id' => 'active_components', 
+					'id' => 'components_active', 
 					'label' => esc_html( __( 'Components', 'ocdutils' ) ), 
 					'description' => esc_html( __( 'Choose the ones you want to use.', 'ocdutils' ) ), 
 					'type' => 'checkboxes', 
 					'options' => array(
 						// This is where you register all the components -- ONLY HERE
 						// To add a component: 
-						//  1. Create a file at ./components/my_slug/my_slug.php  NOTE: Only use underscores in filename (use ocd_example_component file as a starter)
-						//  2. Add to this array e.g.: 'my_slug' => 'My Component Name',
-						//  3. If the component needs to have an Admin settings page tab, add a settings config array in your component file (see ocd_example_component file)
-						'example_component' => 'Example Component', 
-						'upcoming_events_carousel' => 'Upcoming Events Carousel', 
-						'divi_projects_portfolio' => 'Divi Projects Portfolio', 
+						//  1. Create a file at ./components/ocd-my-slug/ocd-my-slug.php  NOTE: ***** IMPORTANT: Don't forget to use the "ocd-" prefix for folder and file
+						//  2. Add to this array e.g.: 'my-slug' => 'My Component Name',
+						//  3. If the component needs to have an Admin settings page tab, add a settings config array in your component file (see ocd-example-component file)
+						'ocd-example-component' => 'Example Component', 
+						'ocd-upcoming-events-carousel' => 'Upcoming Events Carousel', 
+						'ocd-divi-projects-portfolio' => 'Divi Projects Portfolio', 
 					), 
 				), 
 			), 
 		) );
 
-		// Load active components based on saved settings
-		if ( ! empty( $options['active_components'] ) ) {
-			foreach ( $options['active_components'] as $component ) {
+		// Load component files based on saved settings or POSTed form data
+		if ( ! empty( $options['components_active'] ) || isset( $_POST[$this->slug]['components_active'] ) ) {
+			// This code runs before the setting is updated in the database, 
+			// so we want to manually add this to the $options array so the chosen component files will be loaded now instead of waititng until the next page load.
+			$options['components_active'] = $options['components_active'] ?: array();
+			if ( isset( $_POST[$this->slug]['components_active'] ) ) {
+				$options['components_active'] = array_merge( $options['components_active'], (array) $_POST[$this->slug]['components_active'] );
+			}
+
+			foreach ( $options['components_active'] as $component ) {
 				// Check if the example component is commented out above or not. Only want to show the example component when it is deliberately uncommented in this file.
-				if ( 'example_component' === $component && ! array_key_exists( 'example_component', $settings_config_r['components'][0]['sections'][0]['fields'][0]['options'] ) ) {
+				if ( 'ocd-example-component' === $component && ! array_key_exists( 'ocd-example-component', $settings_config_r['components'][0]['sections'][0]['fields'][0]['options'] ) ) {
 					continue;
 				}
 
@@ -157,16 +159,50 @@ class OCD_Utils {
 			// Allow components to modify the settings config via this filter
 			$settings_config_r = apply_filters( 'ocdutils_settings_config', $settings_config_r );
 
+			// Adding/updating component options in the database based on which ones are selected to be active
+			if ( isset( $_POST[$this->slug]['components_active'] ) && isset( $settings_config_r['components'] ) && is_array( $settings_config_r['components'] ) ) {
+				foreach ( $settings_config_r['components'] as $component ) {
+
+					$component_defaults = array();
+
+					if ( isset( $component['sections'] ) && is_array( $component['sections'] ) ) {
+						foreach ( $component['sections'] as $section ) {
+							if ( isset( $section['fields'] ) && is_array( $section['fields'] ) ) {
+								foreach ( $section['fields'] as $field ) {
+									if ( isset( $field['default'], $field['id'] ) ) {
+										$component_defaults[$field['id']] = $field['default'];
+									}
+								}
+							}
+						}
+					}
+
+					// If a component is newly activated (its settings array doesn't yet exist in the options table), add its default settings to the options table
+					if ( ! empty( $component_defaults ) ) {
+						if ( $component['slug'] === 'ocd-utils' || $component['slug'] === 'ocd-example-component' ) {
+							add_option( $component['slug'], $component_defaults, null, false ); // Set fourth param to false so this one isn't autoloaded
+						} else {
+							add_option( $component['slug'], $component_defaults ); // Let wordpress determine if it should be autoloaded.
+						}
+					}
+
+					// If a component is being deactivated, change its option to not be autoloaded.
+					/*if ( ! in_array( $component['slug'], (array) $_POST[$this->slug]['components_active'] ) ) {
+						$component_current_option_r = get_option( $component['slug'], array() );
+						// In order to change the autoload setting, the value must change as well (wordpress quirk),
+						// so we set it to a placeholder value, then set it back to its original value.
+						update_option( $component['slug'], 'ocd-nonsense-beacuse-wordperss-weird-stuff_' . microtime(), false );
+						update_option( $component['slug'], $component_current_option_r, false );
+					} This block doosn't work right, needs to be fixed, but I won't use it for now, just let wordpress determine if they should be autoloaded. */
+
+				}
+			}
+
 			// Load the admin settings handler
 			require_once( OCD_UTILS_DIR . 'includes/class-ocd-settings.php' );
 			$OCD_AdminSettings = new OCD_AdminSettings( $settings_config_r );
 		}
 	}
-
-	public function admin_settings() {
-		
-	}
-	
 }
 
 // Instantiate the main class.
