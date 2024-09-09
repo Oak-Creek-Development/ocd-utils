@@ -66,6 +66,21 @@ class OCD_Utils {
 		require_once( OCD_UTILS_DIR . 'includes/functions.php' );
 
 		add_action( 'plugins_loaded', array( $this, 'config' ) );
+
+		add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), array( $this, 'add_settings_link' ) );
+	}
+	
+	/**
+	 * Adds a link to the settings page on the plugins page.
+	 */
+	public function add_settings_link( $links ) {
+		// Define the URL for the settings page
+		$settings_link = '<a href="options-general.php?page=ocdutils">'. __( 'Settings', 'ocdutils' ) .'</a>';
+
+		// Add the settings link to the beginning of the list
+		array_unshift( $links, $settings_link );
+
+		return $links;
 	}
 	
 	/**
@@ -107,19 +122,22 @@ class OCD_Utils {
 			'fields' => array(
 				array(
 					'id' => 'components_active', 
-					'label' => esc_html( __( 'Components', 'ocdutils' ) ), 
-					'description' => esc_html( __( 'Choose the ones you want to use.', 'ocdutils' ) ), 
+					'label' => esc_html( __( 'Choose Components', 'ocdutils' ) ), 
+					'description' => esc_html( __( 'Select the components that will be in use on this website.', 'ocdutils' ) ), 
 					'type' => 'checkboxes', 
+
+					// This is where you register all the components ***** ONLY HERE
+					// To add a component: 
+					//  1. Create a file at: ./components/ocd-my-slug/ocd-my-slug.php  ***** IMPORTANT: Don't forget to use the "ocd-" prefix for folder and file names
+					//                        you can copy/paste the ocd-example-component folder then change the names
+					//  2. Add it to this array e.g.: 'ocd-my-slug' => 'My Component Name',
+					//  3. If the component needs to have an Admin settings page tab, add a settings config array in your component file (see ocd-example-component file)
 					'options' => array(
-						// This is where you register all the components -- ONLY HERE
-						// To add a component: 
-						//  1. Create a file at ./components/ocd-my-slug/ocd-my-slug.php  NOTE: ***** IMPORTANT: Don't forget to use the "ocd-" prefix for folder and file
-						//  2. Add to this array e.g.: 'my-slug' => 'My Component Name',
-						//  3. If the component needs to have an Admin settings page tab, add a settings config array in your component file (see ocd-example-component file)
-						'ocd-example-component' => 'Example Component', 
+						//'ocd-example-component' => 'Example Component',  // Uncomment this only to see the example. Don't leave it uncommented in production. // DO NOT REMOVE
 						'ocd-upcoming-events-carousel' => 'Upcoming Events Carousel', 
 						'ocd-divi-projects-portfolio' => 'Divi Projects Portfolio', 
 					), 
+					
 				), 
 			), 
 		) );
@@ -128,7 +146,7 @@ class OCD_Utils {
 		if ( ! empty( $options['components_active'] ) || isset( $_POST[$this->slug]['components_active'] ) ) {
 			// This code runs before the setting is updated in the database, 
 			// so we want to manually add this to the $options array so the chosen component files will be loaded now instead of waititng until the next page load.
-			$options['components_active'] = $options['components_active'] ?: array();
+			$options['components_active'] = $options['components_active'] ?? array();
 			if ( isset( $_POST[$this->slug]['components_active'] ) ) {
 				$options['components_active'] = array_merge( $options['components_active'], (array) $_POST[$this->slug]['components_active'] );
 			}
@@ -179,21 +197,12 @@ class OCD_Utils {
 
 					// If a component is newly activated (its settings array doesn't yet exist in the options table), add its default settings to the options table
 					if ( ! empty( $component_defaults ) ) {
-						if ( $component['slug'] === 'ocd-utils' || $component['slug'] === 'ocd-example-component' ) {
+						if ( $component['slug'] === 'ocd-example-component' ) {
 							add_option( $component['slug'], $component_defaults, null, false ); // Set fourth param to false so this one isn't autoloaded
 						} else {
 							add_option( $component['slug'], $component_defaults ); // Let wordpress determine if it should be autoloaded.
 						}
 					}
-
-					// If a component is being deactivated, change its option to not be autoloaded.
-					/*if ( ! in_array( $component['slug'], (array) $_POST[$this->slug]['components_active'] ) ) {
-						$component_current_option_r = get_option( $component['slug'], array() );
-						// In order to change the autoload setting, the value must change as well (wordpress quirk),
-						// so we set it to a placeholder value, then set it back to its original value.
-						update_option( $component['slug'], 'ocd-nonsense-beacuse-wordperss-weird-stuff_' . microtime(), false );
-						update_option( $component['slug'], $component_current_option_r, false );
-					} This block doosn't work right, needs to be fixed, but I won't use it for now, just let wordpress determine if they should be autoloaded. */
 
 				}
 			}

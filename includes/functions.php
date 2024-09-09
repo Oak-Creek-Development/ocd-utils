@@ -13,12 +13,6 @@ if ( ! function_exists( 'ocd_get_options' ) ) {
 			$component->options = (array) get_option( $component->slug, array() );
 		}
 
-		// Merge any default values with the retrieved options.
-		/*if ( ! empty( $component->defaults ) ) {
-			$diff = array_diff_key( $component->defaults, $component->options );
-			$component->options = array_merge( $component->options, $diff );
-		}*/
-
 		return $component->options;
 	}
 }

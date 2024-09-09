@@ -32,13 +32,6 @@ class OCD_ExampleComponent {
 	private $config = array();
 
 	/**
-	 * Holds the default values for the component's fields, used when specific settings are not configured.
-	 *
-	 * @var array
-	 */
-	private $defaults = array();
-
-	/**
 	 * Holds the current options/settings for this component, retrieved from the database.
 	 *
 	 * @var array
@@ -88,7 +81,11 @@ class OCD_ExampleComponent {
 		// Enqueue dependencies, scripts, styles if needed
 		$vanilla_tilt_dir = OCD_UTILS_URL . 'node_modules/vanilla-tilt/dist/';
 		$vanilla_tilt_version = ocd_nodejs_dependency_version( 'vanilla-tilt' );
+
+		// In this case there is no style, but you can enqueue your styles here if needed.
 		//wp_enqueue_style( 'vanilla-tilt', $vanilla_tilt_dir . 'vanilla-tilt.min.css', array(), $vanilla_tilt_version, 'all' );
+		//wp_add_inline_style( 'vanilla-tilt', $this->inline_style( $shortcode_id ) );
+
 		wp_enqueue_script( 'vanilla-tilt', $vanilla_tilt_dir . 'vanilla-tilt.min.js', array(), $vanilla_tilt_version, array( 'strategy' => 'defer', 'in_footer' => true ) );
 		wp_add_inline_script( 'vanilla-tilt', $this->inline_script( $shortcode_id ) );
 
@@ -113,7 +110,7 @@ class OCD_ExampleComponent {
 	private function inline_script( $id ) {
 		ob_start();
 		?>
-		<script type="text/javascript">
+		<script>
 			document.addEventListener('DOMContentLoaded', function(){
 				VanillaTilt.init(document.querySelector('#<?php echo esc_js( $id ); ?>'), {
 					max: 25,
@@ -126,37 +123,8 @@ class OCD_ExampleComponent {
 		</script>
 		<?php
 		// Keep script tags above just to make the code look nice in the editor, remove script tags before output.
-		return str_replace( array( '<script type="text/javascript">', '</script>' ), '', ob_get_clean() );
+		return str_replace( array( '<script>', '</script>' ), '', ob_get_clean() );
 	}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -200,12 +168,12 @@ class OCD_ExampleComponent {
 		ob_start();
 		?>
 		<div>
-			<h4>Options</h4>
-			<p>The above settings are global; they apply uniformly across all instances of this component output.</p>
-			<h4>Shortcode</h4>
-			<p>This example provides a shortcode with 2 options: <code>[ocd_example_component color="red" class="my-special-class"]</code></p>
-			<p>The shortcode attributes can be used to configure the output on a per-instance basis.</p>
-			<p>Omit all attributes to output the default configuration specified in the global settings above: <code>[ocd_example_component]</code></p>
+			<h4><?php _e( 'Options', 'ocdutils' ); ?></h4>
+			<p><?php _e( 'The above settings are global; they apply uniformly across all instances of this component output.', 'ocdutils' ); ?></p>
+			<h4><?php _e( 'Shortcode', 'ocdutils' ); ?></h4>
+			<p><?php _e( 'This example provides a shortcode with 2 options:', 'ocdutils' ); ?> <code>[ocd_example_component color="red" class="my-special-class"]</code></p>
+			<p><?php _e( 'The shortcode attributes can be used to configure the output on a per-instance basis.', 'ocdutils' ); ?></p>
+			<p><?php _e( 'Omit all attributes to output the default configuration specified in the global settings above:', 'ocdutils' ); ?> <code>[ocd_example_component]</code></p>
 			<br /><br />
 		</div>
 		<?php
@@ -218,56 +186,61 @@ class OCD_ExampleComponent {
 	 * @return array The component's config values and settings fields.
 	 */
 	private function define_config_r() {
+		/**************************************/
+		// Don't use esc_html(), esc_attr(), etc. here.
+		// Labels, descriptions, attributes, etc. will be escaped before output.
+		// Only use __(), _e(), etc. for translatable strings.
+		/**************************************/
 		return array(
 			'slug' => $this->slug,
-			'label' => esc_html( __( 'Example', 'ocdutils' ) ), // Tab name in the settings page.
+			'label' => __( 'Example', 'ocdutils' ), // Tab name in the settings page.
 			'sections' => array(
 				array(
 					'id' => 'global',
-					'label' => esc_html( __( 'Global Settings for "Example Component"', 'ocdutils' ) ),
+					'label' => __( 'Global Settings for "Example Component"', 'ocdutils' ),
 					'fields' => array(
 						array(
-							'id' => 'color',
-							'label' => 'Box color',
+							'id' => 'color', // Field id must be unique within each component
+							'label' => __( 'Box color', 'ocdutils' ),
 							'type' => 'select',
-							'description' => esc_html( __( 'Default color of the box. This is used if no color is specified in the shortcode.', 'ocdutils' ) ),
+							'description' => __( 'Default color of the box. This is used if no color is specified in the shortcode.', 'ocdutils' ),
 							'default' => 'orchid',
 							'options' => array(
-								''             => 'None',
-								'teal'         => 'Teal',
-								'purple'       => 'Purple',
-								'cyan'         => 'Cyan',
-								'magenta'      => 'Magenta',
-								'salmon'       => 'Salmon',
-								'orchid'       => 'Orchid',
-								'violet'       => 'Violet',
-								'turquoise'    => 'Turquoise',
-								'crimson'      => 'Crimson'
+								''          => __( 'None',      'ocdutils' ),
+								'teal'      => __( 'Teal',      'ocdutils' ),
+								'purple'    => __( 'Purple',    'ocdutils' ),
+								'cyan'      => __( 'Cyan',      'ocdutils' ),
+								'magenta'   => __( 'Magenta',   'ocdutils' ),
+								'salmon'    => __( 'Salmon',    'ocdutils' ),
+								'orchid'    => __( 'Orchid',    'ocdutils' ),
+								'violet'    => __( 'Violet',    'ocdutils' ),
+								'turquoise' => __( 'Turquoise', 'ocdutils' ),
+								'crimson'   => __( 'Crimson',   'ocdutils' ),
 							)
 						),
 						array(
-							'id' => 'class',
-							'label' => 'Class name',
+							'id' => 'class', // Field id must be unique within each component
+							'label' => __( 'Class name', 'ocdutils' ),
 							'type' => 'text',
-							'description' => esc_html( __( 'Adds an extra class name to the output div. It is added in addition to the class name given in the shortcode, if any.', 'ocdutils' ) ),
+							'description' => __( 'Adds an extra class name to the output div. It is added in addition to the class name given in the shortcode, if any.', 'ocdutils' ),
 						),
 					),
 				),
 				array(
 					'id' => 'usage',
-					'label' => esc_html( __( 'Component Usage Instructions', 'ocdutils' ) ),
+					'label' => __( 'Component Usage Instructions', 'ocdutils' ),
 					'description' => $this->usage_instructions(),
 				),
 				array(
 					'id' => 'dummy',
-					'label' => esc_html( __( 'Other Settings for "Example Component"', 'ocdutils' ) ),
-					'description' => esc_html( __( 'Other Settings for "Example Component". These do nothing in this example. This is just to show the field types available.', 'ocdutils' ) ),
+					'label' => __( 'Other Settings for "Example Component"', 'ocdutils' ),
+					'description' => __( 'These do nothing in this example. This is just to show the field types available.', 'ocdutils' ),
 					'fields' => array(
 						array(
-							'id' => 'number_field_a',
-							'label' => 'Number of items',
+							'id' => 'number_field_a', // Field id must be unique within each component
+							'label' => __( 'Number of Items', 'ocdutils' ),
 							'type' => 'number',
-							'description' => esc_html( __( 'Set the number of items you want to show.', 'ocdutils' ) ),
+							'description' => __( 'Set the number of items you want to show.', 'ocdutils' ),
 							'required' => true,
 							'class' => 'class-for-field-input-element',
 							'min' => '1',
@@ -275,48 +248,49 @@ class OCD_ExampleComponent {
 							'step' => 4,
 						),
 						array(
-							'id' => 'radio_a',
-							'label' => 'Food',
+							'id' => 'radio_a', // Field id must be unique within each component
+							'label' => __( 'Favorite Food', 'ocdutils' ),
 							'type' => 'radio',
-							'description' => esc_html( __( 'Choose your favorite food.', 'ocdutils' ) ),
+							'description' => __( 'Choose your favorite food.', 'ocdutils' ),
 							'default' => 'soup',
 							'options' => array(
-								'hot_dog' => 'Hot Dog',
-								'hamburger' => 'Hamburger',
-								'soup' => 'Soup',
-								'spaghetti' => 'Spaghetti',
+								'hot_dog'   => __( 'Hot Dog',   'ocdutils' ),
+								'hamburger' => __( 'Hamburger', 'ocdutils' ),
+								'taco'      => __( 'Taco',      'ocdutils' ),
+								'soup'      => __( 'Soup',      'ocdutils' ),
+								'spaghetti' => __( 'Spaghetti', 'ocdutils' ),
 							),
 						),
 						array(
-							'id' => 'checkboxes_a',
-							'label' => 'Colors',
+							'id' => 'checkboxes_a', // Field id must be unique within each component
+							'label' => __( 'Pretty Colors', 'ocdutils' ),
 							'type' => 'checkboxes',
-							'description' => esc_html( __( 'Choose the colors you like.', 'ocdutils' ) ),
+							'description' => __( 'Choose the colors you like.', 'ocdutils' ),
 							'options' => array(
-								'blue' => 'Blue',
-								'red' => 'Red',
-								'green' => 'Green',
+								'red'   => __( 'Red',   'ocdutils' ),
+								'green' => __( 'Green', 'ocdutils' ),
+								'blue'  => __( 'Blue',  'ocdutils' ),
 							),
 						),
 						array(
-							'id' => 'select_a',
-							'label' => 'Direction',
+							'id' => 'select_a', // Field id must be unique within each component
+							'label' => __( 'Direction', 'ocdutils' ),
 							'type' => 'select',
-							'description' => esc_html( __( 'Which way did he go, George?', 'ocdutils' ) ),
+							'description' => __( 'Which way did he go, George?', 'ocdutils' ),
 							'options' => array(
-								'' => 'No Direction', // Optional empty value
-								'up' => 'Up',
-								'down' => 'Down',
-								'left' => 'Left',
-								'right' => 'Right',
-								'dont_know' => 'I Have No Idea',
+								''          => __( 'Choose a Direction', 'ocdutils' ), // Optional empty value
+								'up'        => __( 'Up',                 'ocdutils' ),
+								'down'      => __( 'Down',               'ocdutils' ),
+								'left'      => __( 'Left',               'ocdutils' ),
+								'right'     => __( 'Right',              'ocdutils' ),
+								'dont_know' => __( 'I Have No Idea',     'ocdutils' ),
 							),
 						),
 						array(
-							'id' => 'text_a',
-							'label' => 'Just a string',
+							'id' => 'text_a', // Field id must be unique within each component
+							'label' => __( 'A Required String', 'ocdutils' ),
 							'type' => 'text',
-							//'description' => esc_html( __( 'A normal text string.', 'ocdutils' ) ),
+							//'description' => __( 'A normal text string.', 'ocdutils' ),
 							'required' => true,
 						),
 						// Additional fields can be defined here.

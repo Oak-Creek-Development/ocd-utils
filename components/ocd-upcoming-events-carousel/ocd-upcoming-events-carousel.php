@@ -33,20 +33,6 @@ class OCD_UpcomingEvents {
 	private $config = array();
 
 	/**
-	 * Holds the default values for the component's fields, used when specific settings are not configured.
-	 *
-	 * @var array
-	 */
-	private $defaults = array();
-
-	/**
-	 * Holds the current options/settings for this component, retrieved from the database.
-	 *
-	 * @var array
-	 */
-	public $options = array();
-
-	/**
 	 * Constructor to initialize the component.
 	 */
 	public function __construct() {
@@ -64,8 +50,6 @@ class OCD_UpcomingEvents {
 	 * @return string HTML output of the component.
 	 */
 	public function shortcode( $atts ) {
-		//$options = ocd_get_options( $this );
-
 		$no_events_str = '<p>'. __( 'No Upcoming Events', 'ocdutils' ) .'</p>';
 
 		// Check if Event Espresso is active
@@ -96,7 +80,7 @@ class OCD_UpcomingEvents {
 		// Unique ID for each carousel instance
 		static $shortcode_i = -1;
 		$shortcode_i++;
-		$shortcode_id = 'ocd_events_' . $shortcode_i;
+		$shortcode_id = $this->slug .'_' . $shortcode_i;
 
 		// Query events from Event Espresso if not cached
 		$events = EE_Registry::instance()->load_model( 'Event' )->get_all( array(
@@ -114,11 +98,16 @@ class OCD_UpcomingEvents {
 		// Enqueue dependencies
 		$glide_dir = OCD_UTILS_URL . 'node_modules/@glidejs/glide/dist/';
 		$glide_version = ocd_nodejs_dependency_version( '@glidejs/glide' );
+		
 		wp_enqueue_style( 'glidejs',       $glide_dir . 'css/glide.core.min.css',  array(), $glide_version, 'all' );
 		wp_enqueue_style( 'glidejs-theme', $glide_dir . 'css/glide.theme.min.css', array(), $glide_version, 'all' );
+		wp_add_inline_style( 'glidejs-theme', $this->inline_style( $shortcode_id ) );
+
 		wp_enqueue_script( 'glidejs',      $glide_dir . 'glide.min.js',            array(), $glide_version, array( 'strategy' => 'defer', 'in_footer' => true ) );
 		wp_add_inline_script( 'glidejs', $this->inline_script( $shortcode_id ) );
 
+		$list_items = '';
+		$bullets = '';
 		$event_i = -1;
 		foreach ( $events as $post_id => $event ) {
 			if ( ! $event instanceof EE_Event ) continue;
@@ -131,7 +120,7 @@ class OCD_UpcomingEvents {
 
 			$post_thumbnail = get_the_post_thumbnail( $post_id, 'medium', array( 'loading' => 'lazy' ) );
 			if ( empty( $post_thumbnail ) ) {
-				$post_thumbnail = '<img src="'. OCD_UTILS_URL .'components/upcoming_events_carousel/event-placeholder.png" alt="'. $event_name .'" />';
+				$post_thumbnail = '<img src="'. OCD_UTILS_URL .'components/'. $this->slug .'/event-placeholder.png" alt="'. $event_name .'" />';
 			}
 
 			// Build list item HTML
@@ -161,7 +150,8 @@ class OCD_UpcomingEvents {
 		}
 
 		// Build the final HTML structure for the carousel
-		$html .= '<div id="'. $shortcode_id .'" class="ocd_events'. $atts['class'] .'">';
+		$html  = '';
+		$html .= '<div id="'. $shortcode_id .'" class="'. $this->slug . $atts['class'] .'">';
 
 			$html .= '<div class="glide__track" data-glide-el="track">';
 				$html .= '<ul class="glide__slides">';
@@ -204,7 +194,7 @@ class OCD_UpcomingEvents {
 	private function inline_script( $id ) {
 		ob_start();
 		?>
-		<script type="text/javascript">
+		<script>
 			document.addEventListener('DOMContentLoaded', function(){
 				new Glide('#<?php echo esc_js( $id ); ?>', {
 					type: 'carousel',
@@ -233,41 +223,113 @@ class OCD_UpcomingEvents {
 		</script>
 		<?php
 		// Keep script tags above just to make the code look nice in the editor, remove script tags before output.
-		return str_replace( array( '<script type="text/javascript">', '</script>' ), '', ob_get_clean() );
+		return str_replace( array( '<script>', '</script>' ), '', ob_get_clean() );
 	}
 
+	/**
+	 * Generates the inline CSS for the component.
+	 *
+	 * @param string $id The unique ID of the component instance.
+	 * @return string The inline CSS code.
+	 */
+	private function inline_style( $id ) {
+		$class = '.'.$this->slug;
+		ob_start();
+		?>
+		<style>
+			<?php echo $class; ?> .glide__track {
+				border-radius: 6px;
+			}
 
+			<?php echo $class; ?> ul.glide__slides {
+				list-style-type: none !important;
+				padding: 0 0 0 0 !important;
+			}
 
+			<?php echo $class; ?> .glide__bullets {
+				bottom: -1em;
+			}
 
+			<?php echo $class; ?> .glide__bullet {
+				background-color: #1d2844dd;
+				box-shadow: 0 .25em .5em 0 #0004;
+			}
 
+			<?php echo $class; ?> .glide__bullet:hover,
+			<?php echo $class; ?> .glide__bullet--active {
+				background-color: #000;
+			}
 
+			<?php echo $class; ?> .glide__arrow {
+				top: 24%;
+				background-color: #fffd;
+				border-color: #fffb;
+				box-shadow: .15em .25em .5em 0 #0004;
+			}
 
+			<?php echo $class; ?> .glide__arrow:hover {
+				background-color: #fffe;
+			}
 
+			<?php echo $class; ?> .glide__arrow svg {
+				fill: #1d2844;
+			}
 
+			<?php echo $class; ?> .glide__arrow span[aria-hidden="true"],
+			<?php echo $class; ?> .glide__bullet span[aria-hidden="true"] {
+				display: none;
+			}
 
+			<?php echo $class; ?> .ocd-event-thumbnail {
+				display: block;
+				position: relative;
+				width: 100%;
+				padding-top: 56.25%;
+				overflow: hidden;
+				margin-bottom: 12px;
+				border-radius: 6px;
+				background-color: #ebebeb;
+				box-shadow: .15em .25em .5em 0 #0004;
+			}
 
+			<?php echo $class; ?> .ocd-event-thumbnail > img {
+				position: absolute;
+				width: 100%;
+				height: 100%;
+				top: 0;
+				left: 0;
+				bottom: 0;
+				right: 0;
+				object-fit: cover;
+				object-position: center;
+			}
 
+			<?php echo $class; ?> .ocd-event-title {
+				font-size: 1em;
+				text-rendering: optimizeLegibility;
+				padding-bottom: 0;
+			}
 
+			<?php echo $class; ?> .ocd-event-dates {
+				font-size: .5em;
+				color: #8a1912;
+				padding: 4px 0;
+				line-height: 1.3em;
+			}
 
+			<?php echo $class; ?> .ocd-event-dates time {
+				white-space: nowrap;
+			}
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+			<?php echo $class; ?> .ocd-event-description {
+				font-size: .6em;
+				line-height: 1.3em;
+			}
+		</style>
+		<?php
+		// Keep style tags above just to make the code look nice in the editor, remove style tags before output.
+		return str_replace( array( '<style>', '</style>' ), '', ob_get_clean() );
+	}
 
 
 
@@ -307,8 +369,19 @@ class OCD_UpcomingEvents {
 		ob_start();
 		?>
 		<div>
-			<!-- <h4>Shortcode</h4> -->
-			<p>Tsdg adfg ddaf sfwfga: <code>[ocd_upcoming_events_carousel k="v"]</code></p>
+			<h4><?php _e( 'Attributes', 'ocdutils' ); ?></h4>
+			<ul>
+				<li><strong>class</strong>: <?php _e( 'Adds an additional class to the wrapper div for your custom styles.', 'ocdutils' ); ?> (<?php _e( 'Default is', 'ocdutils' ) ?> <?php echo $this->slug; ?>)</li>
+				<li><strong>title_tag</strong>: <?php _e( 'Choose the HTML element to be used for the event titles. h1, h2, h3, h4, h5, h6, p, span, etc.', 'ocdutils' ); ?> (<?php _e( 'Default is', 'ocdutils' ) ?> h3)</li>
+				<li><strong>limit</strong>: <?php _e( 'Number of events to pull from the database.', 'ocdutils' ); ?> (<?php _e( 'Default is', 'ocdutils' ) ?> 7)</li>
+				<li><strong>nav_arrows</strong>: <?php _e( 'Include the "prev" and "next" navigation arrows in the carousel.', 'ocdutils' ); ?> (<?php _e( 'Default is', 'ocdutils' ) ?> true)</li>
+				<li><strong>nav_bullets</strong>: <?php _e( 'Include the navigation dots at the bottom of the carousel.', 'ocdutils' ); ?> (<?php _e( 'Default is', 'ocdutils' ) ?> true)</li>
+			</ul>
+			<h4><?php _e( 'Examples', 'ocdutils' ); ?></h4>
+			<p><code>[ocd_upcoming_events_carousel]</code> <?php _e( 'All default settings.', 'ocdutils' ) ?></p>
+			<p><code>[ocd_upcoming_events_carousel class="my-custom-class" title_tag="h2" limit="7" nav_arrows="false" nav_bullets="true"]</code></p>
+			<p><code>[ocd_upcoming_events_carousel title_tag="h3" limit="21" nav_bullets="false"]</code></p>
+			<p><?php _e( 'Use all attributes, or none, or mix-and-match. Any attributes omitted from the shortcode will use the default value.', 'ocdutils' ); ?></p>
 			<br /><br />
 		</div>
 		<?php
@@ -323,11 +396,11 @@ class OCD_UpcomingEvents {
 	private function define_config_r() {
 		return array(
 			'slug' => $this->slug,
-			'label' => esc_html( __( 'Events Carousel', 'ocdutils' ) ), // Tab name in the settings page.
+			'label' => __( 'Events Carousel', 'ocdutils' ), // Tab name in the settings page.
 			'sections' => array(
 				array(
 					'id' => 'usage',
-					'label' => esc_html( __( 'Shortcocde Instructions', 'ocdutils' ) ),
+					'label' => __( 'Shortcocde Instructions', 'ocdutils' ),
 					'description' => $this->usage_instructions(),
 				),
 				// Additional sections can be defined here.

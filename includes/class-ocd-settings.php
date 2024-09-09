@@ -130,8 +130,8 @@ class OCD_AdminSettings {
 
 				add_settings_section(
 					$section['id'],
-					$section['label'],
-					function() use ( $section ) { echo isset( $section['description'] ) ? $section['description'] : ''; },
+					esc_html( $section['label'] ),
+					function() use ( $section ) { echo isset( $section['description'] ) ? html_entity_decode( esc_html( $section['description'] ) ) : ''; },
 					$this->component['slug']
 				);
 
@@ -169,6 +169,7 @@ class OCD_AdminSettings {
 		}
 
 		echo '<div class="wrap">';
+		
 			echo '<h1>'. esc_html( $this->config['page_title'] ) .'</h1>';
 
 			// Display tabs if there are multiple components
@@ -186,11 +187,38 @@ class OCD_AdminSettings {
 			}
 
 			echo '<form method="post" action="options.php">';
+
 				settings_fields( $this->component['slug'] ); // Output nonce, action, and option_page fields
 				do_settings_sections( $this->component['slug'] ); // Output sections and their fields
-				submit_button(); // Render the submit button
+
+				if ( $this->component_has_field( $this->component ) ) {
+					submit_button(); // Render the submit button
+				}
+
 			echo '</form>';
+
 		echo '</div>';
+	}
+
+	/**
+	 * Determines whether a component's config array contains any fields.
+	 *
+	 * @return boolean
+	 */
+	private function component_has_field( $component ) {
+		if ( isset( $component['sections'] ) && is_array( $component['sections'] ) ) {
+			foreach ( $component['sections'] as $section ) {
+				if ( isset( $section['fields'] ) && is_array( $section['fields'] ) ) {
+					foreach ( $section['fields'] as $field ) {
+						if ( isset( $field['id'] ) ) {
+							return true;
+						}
+					}
+				}
+			}
+		}
+
+		return false;
 	}
 
 	/**
@@ -243,9 +271,6 @@ class OCD_AdminSettings {
 	 */
 	public function render_field_text( $field ) {
 		$val = $this->get_val( $field );
-		// if ( empty( $val ) && isset( $field['default'] ) ) {
-		// 	$val = $field['default'];
-		// }
 
 		$atts = $this->field_atts( $field );
 		$atts .= empty( $val ) ? '' : ' value="'. esc_html( $val ) .'"';
@@ -263,9 +288,6 @@ class OCD_AdminSettings {
 	 */
 	public function render_field_number( $field ) {
 		$val = $this->get_val( $field );
-		// if ( empty( $val ) && isset( $field['default'] ) ) {
-		// 	$val = $field['default'];
-		// }
 	
 		$field['class'] = trim( 'small-text ' . esc_attr( ( $field['class'] ?? '' ) ) );
 	
@@ -285,9 +307,6 @@ class OCD_AdminSettings {
 	 */
 	public function render_field_select( $field ) {
 		$val = $this->get_val( $field );
-		// if ( empty( $val ) && isset( $field['default'] ) && array_key_exists( $field['default'], $field['options'] ) ) {
-		// 	$val = $field['default'];
-		// }
 	
 		$atts = $this->field_atts( $field );
 	
@@ -308,11 +327,8 @@ class OCD_AdminSettings {
 	 */
 	public function render_field_checkboxes( $field ) {
 		$val = $this->get_val( $field );
-		// if ( empty( $val ) && isset( $field['default'] ) && array_key_exists( $field['default'], $field['options'] ) ) {
-		// 	$val = $field['default'];
-		// }
-	
-      echo '<fieldset><legend class="screen-reader-text"><span>'. esc_html( $field['label'] ) .'</span></legend>';
+
+		echo '<fieldset><legend class="screen-reader-text"><span>'. esc_html( $field['label'] ) .'</span></legend>';
 			foreach ( $field['options'] as $k => $v ) {
 				$name = $this->component['slug'] .'['. $field['id'] .']';
 				$id = $name . $k;
@@ -334,9 +350,6 @@ class OCD_AdminSettings {
 	 */
 	public function render_field_radio( $field ) {
 		$val = $this->get_val( $field );
-		// if ( empty( $val ) && isset( $field['default'] ) && array_key_exists( $field['default'], $field['options'] ) ) {
-		// 	$val = $field['default'];
-		// }
 	
       echo '<fieldset><legend class="screen-reader-text"><span>'. esc_html( $field['label'] ) .'</span></legend>';
 			echo '<p>';
