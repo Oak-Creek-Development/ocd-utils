@@ -128,6 +128,10 @@ class OCD_AdminSettings {
 					continue;
 				}
 
+				if ( ! isset( $section['label'] ) ) {
+					$section['label'] = esc_html( __( 'Component Settings', 'ocdutils' ) );
+				}
+
 				add_settings_section(
 					$section['id'],
 					esc_html( $section['label'] ),
@@ -271,6 +275,8 @@ class OCD_AdminSettings {
 	 */
 	public function render_field_text( $field ) {
 		$val = $this->get_val( $field );
+
+		$field['class'] = empty( $field['class'] ) ? 'regular-text' : '';
 
 		$atts = $this->field_atts( $field );
 		$atts .= empty( $val ) ? '' : ' value="'. esc_html( $val ) .'"';

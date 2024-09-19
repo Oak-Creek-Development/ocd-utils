@@ -53,16 +53,23 @@ class OCD_ExampleComponent {
 	 * Shortcode handler for rendering the component.
 	 *
 	 * @param array $atts Shortcode attributes.
+	 * @param string $content Shortcode content.
+	 * @param string $tag Shortcode tag.
+	 * 
 	 * @return string HTML output of the component.
 	 */
-	public function shortcode( $atts ) {
+	public function shortcode( $atts = array(), $content = '', $tag = 'ocd_example_component' ) {
 		$options = ocd_get_options( $this );
 
 		// Set default shortcode attributes, overriding with any provided.
-		$atts = shortcode_atts( array(
-			'color' => $options['color'], // The default option configured in this file's config function is used here if no settings were ever saved in Admin.
-			'class' => '',
-		), $atts, 'ocd_example_component' );
+		$atts = shortcode_atts( 
+			array(
+				'color' => $options['color'], // The default option configured in this file's config function is used here if no settings were ever saved in Admin.
+				'class' => '',
+			), 
+			array_change_key_case( (array)$atts, CASE_LOWER ), 
+			$tag 
+		);
 
 		// Sanitize and process attributes
 		$atts['color'] = sanitize_text_field( $atts['color'] );
@@ -76,7 +83,7 @@ class OCD_ExampleComponent {
 		// Create a unique ID for each instance of the shortcode to avoid conflicts.
 		static $shortcode_i = -1;
 		$shortcode_i++;
-		$shortcode_id = 'ocd_example_' . $shortcode_i;
+		$shortcode_id = $this->slug .'_' . $shortcode_i;
 	
 		// Enqueue dependencies, scripts, styles if needed
 		$vanilla_tilt_dir = OCD_UTILS_URL . 'node_modules/vanilla-tilt/dist/';

@@ -1,7 +1,7 @@
 === OCD Utils ===
 
 Plugin Name: OCD Utils
-Plugin URI: https://www.oakcreekdev.com.com/
+Plugin URI: https://www.oakcreekdev.com/
 Description: Provides a collection of useful stuff for WordPress.
 Author: Jeremy Kozan
 Author URI: https://www.oakcreekdev.com/

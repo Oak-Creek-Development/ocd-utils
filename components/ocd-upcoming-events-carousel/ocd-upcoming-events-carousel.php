@@ -47,10 +47,13 @@ class OCD_UpcomingEvents {
 	 * Shortcode handler for rendering the component.
 	 *
 	 * @param array $atts Shortcode attributes.
+	 * @param string $content Shortcode content.
+	 * @param string $tag Shortcode string.
+	 * 
 	 * @return string HTML output of the component.
 	 */
-	public function shortcode( $atts ) {
-		$no_events_str = '<p>'. __( 'No Upcoming Events', 'ocdutils' ) .'</p>';
+	public function shortcode( $atts = array(), $content = '', $tag = 'ocd_upcoming_events_carousel' ) {
+		$no_events_str = '<p>'. esc_html( __( 'No Upcoming Events', 'ocdutils' ) ) .'</p>';
 
 		// Check if Event Espresso is active
 		if ( ! class_exists( 'EE_Registry' ) ) {
@@ -59,13 +62,17 @@ class OCD_UpcomingEvents {
 		}
 
 		// Set default attributes for the shortcode
-		$atts = shortcode_atts( array(
-			'class'       => '',            // Additional class for the carousel
-			'title_tag'   => 'h3',          // HTML tag for event titles
-			'limit'       => 7,             // Number of events to display
-			'nav_arrows'  => 'true',        // Show navigation arrows
-			'nav_bullets' => 'true',        // Show navigation bullets
-		), $atts, 'ocd_upcoming_events_carousel' );
+		$atts = shortcode_atts( 
+			array(
+				'class'       => '',     // Additional class for the carousel
+				'title_tag'   => 'h3',   // HTML tag for event titles
+				'limit'       => 7,      // Number of events to display
+				'nav_arrows'  => 'true', // Show navigation arrows
+				'nav_bullets' => 'true', // Show navigation bullets
+			), 
+			array_change_key_case( (array)$atts, CASE_LOWER ), 
+			$tag 
+		);
 
 		// Sanitize and process attributes
 		$atts['class'] = sanitize_text_field( $atts['class'] );
@@ -88,7 +95,7 @@ class OCD_UpcomingEvents {
 				'Datetime.DTT_EVT_end' => array( '>=', current_time( 'mysql' ) ), // Only future events (include events that have already started)
 				'status' => 'publish',
 			),
-			'limit'    => esc_attr( $atts['limit'] ),
+			'limit'    => intval( $atts['limit'] ),
 			'order_by' => 'Datetime.DTT_EVT_start',
 			'order'    => 'ASC',
 			'group_by' => 'EVT_ID',
@@ -371,11 +378,26 @@ class OCD_UpcomingEvents {
 		<div>
 			<h4><?php _e( 'Attributes', 'ocdutils' ); ?></h4>
 			<ul>
-				<li><strong>class</strong>: <?php _e( 'Adds an additional class to the wrapper div for your custom styles.', 'ocdutils' ); ?> (<?php _e( 'Default is', 'ocdutils' ) ?> <?php echo $this->slug; ?>)</li>
-				<li><strong>title_tag</strong>: <?php _e( 'Choose the HTML element to be used for the event titles. h1, h2, h3, h4, h5, h6, p, span, etc.', 'ocdutils' ); ?> (<?php _e( 'Default is', 'ocdutils' ) ?> h3)</li>
-				<li><strong>limit</strong>: <?php _e( 'Number of events to pull from the database.', 'ocdutils' ); ?> (<?php _e( 'Default is', 'ocdutils' ) ?> 7)</li>
-				<li><strong>nav_arrows</strong>: <?php _e( 'Include the "prev" and "next" navigation arrows in the carousel.', 'ocdutils' ); ?> (<?php _e( 'Default is', 'ocdutils' ) ?> true)</li>
-				<li><strong>nav_bullets</strong>: <?php _e( 'Include the navigation dots at the bottom of the carousel.', 'ocdutils' ); ?> (<?php _e( 'Default is', 'ocdutils' ) ?> true)</li>
+				<li><strong>class</strong>: 
+					<?php _e( 'Adds an additional class to the wrapper div for your custom styles.', 'ocdutils' ); ?> 
+					<?php _e( 'Default is', 'ocdutils' ) ?> <code><?php echo $this->slug; ?></code>
+				</li>
+				<li><strong>title_tag</strong>: 
+					<?php _e( 'Choose the HTML element to be used for the event titles. h1, h2, h3, h4, h5, h6, p, span, etc.', 'ocdutils' ); ?> 
+					<?php _e( 'Default is', 'ocdutils' ) ?> <code>h3</code>
+				</li>
+				<li><strong>limit</strong>: 
+					<?php _e( 'Number of events to pull from the database.', 'ocdutils' ); ?> 
+					<?php _e( 'Default is', 'ocdutils' ) ?> <code>7</code>
+				</li>
+				<li><strong>nav_arrows</strong>: 
+					<?php _e( 'Include the "prev" and "next" navigation arrows in the carousel.', 'ocdutils' ); ?> 
+					<?php _e( 'Default is', 'ocdutils' ) ?> <code>true</code>
+				</li>
+				<li><strong>nav_bullets</strong>: 
+					<?php _e( 'Include the navigation dots at the bottom of the carousel.', 'ocdutils' ); ?> 
+					<?php _e( 'Default is', 'ocdutils' ) ?> <code>true</code>
+				</li>
 			</ul>
 			<h4><?php _e( 'Examples', 'ocdutils' ); ?></h4>
 			<p><code>[ocd_upcoming_events_carousel]</code> <?php _e( 'All default settings.', 'ocdutils' ) ?></p>

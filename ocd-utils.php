@@ -65,7 +65,7 @@ class OCD_Utils {
 		$this->define_constants();
 		require_once( OCD_UTILS_DIR . 'includes/functions.php' );
 
-		add_action( 'plugins_loaded', array( $this, 'config' ) );
+		add_action( 'init', array( $this, 'config' ) );
 
 		add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), array( $this, 'add_settings_link' ) );
 	}
@@ -75,7 +75,7 @@ class OCD_Utils {
 	 */
 	public function add_settings_link( $links ) {
 		// Define the URL for the settings page
-		$settings_link = '<a href="options-general.php?page=ocdutils">'. __( 'Settings', 'ocdutils' ) .'</a>';
+		$settings_link = '<a href="'. OCD_UTILS_SETTINGS_PAGE_LINK .'">'. __( 'Settings', 'ocdutils' ) .'</a>';
 
 		// Add the settings link to the beginning of the list
 		array_unshift( $links, $settings_link );
@@ -87,9 +87,10 @@ class OCD_Utils {
 	 * Define plugin constants.
 	 */
 	private function define_constants() {
-		if ( ! defined( 'OCD_UTILS_NAME' ) ) define( 'OCD_UTILS_NAME', 'OCD Utils' );
-		if ( ! defined( 'OCD_UTILS_DIR' ) ) define( 'OCD_UTILS_DIR', trailingslashit( plugin_dir_path( __FILE__ ) ) );
-		if ( ! defined( 'OCD_UTILS_URL' ) ) define( 'OCD_UTILS_URL', trailingslashit( plugin_dir_url( __FILE__ ) ) );
+		if ( ! defined( 'OCD_UTILS_NAME'               ) ) define( 'OCD_UTILS_NAME',               'OCD Utils'                                    );
+		if ( ! defined( 'OCD_UTILS_DIR'                ) ) define( 'OCD_UTILS_DIR',                trailingslashit( plugin_dir_path( __FILE__ ) ) );
+		if ( ! defined( 'OCD_UTILS_URL'                ) ) define( 'OCD_UTILS_URL',                trailingslashit( plugin_dir_url( __FILE__ )  ) );
+		if ( ! defined( 'OCD_UTILS_SETTINGS_PAGE_LINK' ) ) define( 'OCD_UTILS_SETTINGS_PAGE_LINK', 'options-general.php?page=ocdutils'            );
 	}
 
 	/**
@@ -112,7 +113,25 @@ class OCD_Utils {
 		$settings_config_r['components'][] = array(
 			'slug' => $this->slug,
 			'label' => esc_html( __( 'General', 'ocdutils' ) ), 
-			'sections' => array(), 
+			'sections' => array(
+				array(
+					'id' => 'utils',
+					'label' => esc_html( __( 'Utilities', 'ocdutils' ) ), 
+					'fields' => array(
+						array(
+							'id' => 'utilities_active', 
+							'label' => esc_html( __( 'Choose Utilities', 'ocdutils' ) ), 
+							'description' => esc_html( __( 'Select the utilities that will be active on this website.', 'ocdutils' ) ), 
+							'type' => 'checkboxes', 
+							'options' => array(
+								'frontend-link' => esc_html( __( 'Show slug and "Frontend" link (for Divi) in Admin list.', 'ocdutils' ) ), 
+								'subpages-list' => esc_html( __( 'Show a list of sub-pages if the page content is empty.', 'ocdutils' ) ), 
+							), 
+							
+						), 
+					), 
+				)
+			), 
 		);
 
 		// *** SPECIAL SECTION to add component chooser -- NOT A NORMAL PART OF THE SETTINGS API
@@ -135,7 +154,7 @@ class OCD_Utils {
 					'options' => array(
 						//'ocd-example-component' => 'Example Component',  // Uncomment this only to see the example. Don't leave it uncommented in production. // DO NOT REMOVE
 						'ocd-upcoming-events-carousel' => 'Upcoming Events Carousel', 
-						'ocd-divi-projects-portfolio' => 'Divi Projects Portfolio', 
+						'ocd-filter-portfolio' => 'Filterable Portfolio with Modals', 
 					), 
 					
 				), 
@@ -166,7 +185,25 @@ class OCD_Utils {
 					add_action( 'admin_notices', function() use ( $component ) {
 						printf(
 							'<div class="notice notice-error"><p>%s</p></div>',
-							esc_html( sprintf( __( "OCD Utils: The component file for '%s' is missing or not readable.", 'ocdutils' ), $component ) )
+							esc_html( sprintf( __( "%s: The component file for '%s' is missing or not readable.", 'ocdutils' ), OCD_UTILS_NAME, $component ) )
+						);
+					} );
+				}
+			}
+		}
+
+		if ( ! empty( $options['utilities_active'] ) ) {
+			foreach ( $options['utilities_active'] as $utilitiy ) {
+				$file_path = OCD_UTILS_DIR . 'utilities/'. $utilitiy .'/'. $utilitiy .'.php';
+
+				if ( is_readable( $file_path ) ) {
+					require_once( $file_path );
+				} else {
+					// Display an admin notice if the utility file is missing
+					add_action( 'admin_notices', function() use ( $utilitiy ) {
+						printf(
+							'<div class="notice notice-error"><p>%s</p></div>',
+							esc_html( sprintf( __( "%s: The utility file for '%s' is missing or not readable.", 'ocdutils' ), OCD_UTILS_NAME, $utilitiy ) )
 						);
 					} );
 				}
