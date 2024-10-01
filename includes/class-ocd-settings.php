@@ -44,7 +44,7 @@ class OCD_AdminSettings {
 	 * @param array $config Configuration array for settings.
 	 */
 	public function __construct( $config ) {
-		$this->config = $config;
+		$this->config = $this->ingest_config( $config );
 
 		// Sanitize the 'tab' query parameter to avoid malicious input
 		$current_tab = isset( $_GET['tab'] ) ? sanitize_text_field( $_GET['tab'] ) : '';
@@ -54,6 +54,55 @@ class OCD_AdminSettings {
 
 		add_action( 'admin_menu', array( $this, 'admin_menu' ) );
 		add_action( 'admin_init', array( $this, 'admin_init' ) );
+	}
+
+	/**
+	 * Does escaping and other adjustments on the config array.
+	 *
+	 * @param array $config Configuration array for settings.
+	 * @return array Adjusted component configuration.
+	 */
+	private function ingest_config( $config ) {
+		if ( empty( $config['components'] ) ) return $config;
+
+		foreach ( $config['components'] as $ck => $component ) {
+
+			// do compnent stuff
+
+			if ( empty( $component['sections'] ) ) continue;
+			foreach ( $component['sections'] as $sk => $section ) {
+
+				if ( empty( $section['label'] ) ) {
+					$config['components'][$ck]['sections'][$sk]['label'] = esc_html( __( 'Component Settings', 'ocdutils' ) );
+				} else {
+					$config['components'][$ck]['sections'][$sk]['label'] = esc_html( $section['label'] );
+				}
+
+				if ( ! empty( $section['description'] ) ) {
+					$config['components'][$ck]['sections'][$sk]['description'] = esc_html( $section['description'] );
+				}
+
+				if ( empty( $section['fields'] ) ) continue;
+				foreach ( $section['fields'] as $fk => $field ) {
+
+					// add "required" asterisk to field label if necessary
+					if ( ! empty( $field['required'] ) ) {
+						$config['components'][$ck]['sections'][$sk]['fields'][$fk]['label'] = esc_html( $field['label'] ) . ' <span style="color: #f00;">*</span>';
+					} else {
+						$config['components'][$ck]['sections'][$sk]['fields'][$fk]['label'] = esc_html( $field['label'] );
+					}
+
+					if ( ! empty( $field['description'] ) ) {
+						$config['components'][$ck]['sections'][$sk]['fields'][$fk]['description'] = esc_html( $field['description'] );
+					}
+
+				}
+
+			}
+
+		}
+
+		return $config;
 	}
 
 	/**
@@ -128,14 +177,10 @@ class OCD_AdminSettings {
 					continue;
 				}
 
-				if ( ! isset( $section['label'] ) ) {
-					$section['label'] = esc_html( __( 'Component Settings', 'ocdutils' ) );
-				}
-
 				add_settings_section(
 					$section['id'],
-					esc_html( $section['label'] ),
-					function() use ( $section ) { echo isset( $section['description'] ) ? html_entity_decode( esc_html( $section['description'] ) ) : ''; },
+					$section['label'],
+					function() use ( $section ) { echo isset( $section['description'] ) ? html_entity_decode( $section['description'] ) : ''; },
 					$this->component['slug']
 				);
 
@@ -283,7 +328,7 @@ class OCD_AdminSettings {
 	
 		echo '<input type="text"'. $atts .' />';
 
-		if ( ! empty( $field['description'] ) ) echo '<p class="description">'. esc_html( $field['description'] ) .'</p>';
+		if ( ! empty( $field['description'] ) ) echo '<p class="description">'. $field['description'] .'</p>';
 	}
 	
 	/**
@@ -302,7 +347,7 @@ class OCD_AdminSettings {
 	
 		echo '<input type="number"'. $atts .' />';
 
-		if ( ! empty( $field['description'] ) ) echo '<p class="description">'. esc_html( $field['description'] ) .'</p>';
+		if ( ! empty( $field['description'] ) ) echo '<p class="description">'. $field['description'] .'</p>';
 	}
 	
 	/**
@@ -322,7 +367,7 @@ class OCD_AdminSettings {
 		}
 		echo '</select>';
 
-		if ( ! empty( $field['description'] ) ) echo '<p class="description">'. esc_html( $field['description'] ) .'</p>';
+		if ( ! empty( $field['description'] ) ) echo '<p class="description">'. $field['description'] .'</p>';
 	}
 	
 	/**
@@ -334,7 +379,7 @@ class OCD_AdminSettings {
 	public function render_field_checkboxes( $field ) {
 		$val = $this->get_val( $field );
 
-		echo '<fieldset><legend class="screen-reader-text"><span>'. esc_html( $field['label'] ) .'</span></legend>';
+		echo '<fieldset><legend class="screen-reader-text"><span>'. $field['label'] .'</span></legend>';
 			foreach ( $field['options'] as $k => $v ) {
 				$name = $this->component['slug'] .'['. $field['id'] .']';
 				$id = $name . $k;
@@ -344,7 +389,7 @@ class OCD_AdminSettings {
 					echo '<input type="checkbox" name="'. esc_attr( $name ) .'[]" id="'. esc_attr( $id ) .'" value="'. esc_attr( $k ) .'"'. $checked .' />';
 				echo esc_html( $v ) . '</label><br />';
 			}
-			if ( ! empty( $field['description'] ) ) echo '<p class="description">'. esc_html( $field['description'] ) .'</p>';
+			if ( ! empty( $field['description'] ) ) echo '<p class="description">'. $field['description'] .'</p>';
       echo '</fieldset>';
 	}
 	
@@ -357,7 +402,7 @@ class OCD_AdminSettings {
 	public function render_field_radio( $field ) {
 		$val = $this->get_val( $field );
 	
-      echo '<fieldset><legend class="screen-reader-text"><span>'. esc_html( $field['label'] ) .'</span></legend>';
+      echo '<fieldset><legend class="screen-reader-text"><span>'. $field['label'] .'</span></legend>';
 			echo '<p>';
 				foreach ( $field['options'] as $k => $v ) {
 					$name = $this->component['slug'] .'['. $field['id'] .']';
@@ -369,7 +414,7 @@ class OCD_AdminSettings {
 					echo esc_html( $v ) . '</label><br />';
 				}
 			echo '</p>';
-			if ( ! empty( $field['description'] ) ) echo '<p class="description">'. esc_html( $field['description'] ) .'</p>';
+			if ( ! empty( $field['description'] ) ) echo '<p class="description">'. $field['description'] .'</p>';
       echo '</fieldset>';
 	}
 

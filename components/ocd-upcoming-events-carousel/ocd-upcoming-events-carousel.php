@@ -87,7 +87,7 @@ class OCD_UpcomingEvents {
 		// Unique ID for each carousel instance
 		static $shortcode_i = -1;
 		$shortcode_i++;
-		$shortcode_id = $this->slug .'_' . $shortcode_i;
+		$shortcode_id = $this->slug .'-' . $shortcode_i;
 
 		// Query events from Event Espresso if not cached
 		$events = EE_Registry::instance()->load_model( 'Event' )->get_all( array(
@@ -113,7 +113,7 @@ class OCD_UpcomingEvents {
 		wp_enqueue_script( 'glidejs',      $glide_dir . 'glide.min.js',            array(), $glide_version, array( 'strategy' => 'defer', 'in_footer' => true ) );
 		wp_add_inline_script( 'glidejs', $this->inline_script( $shortcode_id ) );
 
-		$list_items = '';
+		$slides = '';
 		$bullets = '';
 		$event_i = -1;
 		foreach ( $events as $post_id => $event ) {
@@ -131,26 +131,24 @@ class OCD_UpcomingEvents {
 			}
 
 			// Build list item HTML
-			$list_items .= '<li class="ocd-event-item glide__slide">';
-				$list_items .= '<article aria-labelledby="ocd-event-'. $shortcode_i . '-' . $event_i .'-title">';
+			$slides .= '<article class="ocd-event-item glide__slide" aria-labelledby="ocd-event-'. $shortcode_i . '-' . $event_i .'-title">';
 
-					$list_items .= '<a class="ocd-event-thumbnail" href="'. esc_url( get_permalink( $post_id ) ) .'" title="'. $event_name .'">';
-						$list_items .= $post_thumbnail;
-					$list_items .= '</a>';
+				$slides .= '<a class="ocd-event-thumbnail" href="'. esc_url( get_permalink( $post_id ) ) .'" title="'. $event_name .'">';
+					$slides .= $post_thumbnail;
+				$slides .= '</a>';
 
-					$list_items .= '<'. $atts['title_tag'] .' id="ocd-event-'. $shortcode_i . '-' . $event_i .'-title" class="ocd-event-title">';
-						$list_items .= '<a href="'. esc_url( get_permalink( $post_id ) ) .'" title="'. $event_name .'">'. $event_name .'</a>';
-					$list_items .= '</'. $atts['title_tag'] .'>';
+				$slides .= '<'. $atts['title_tag'] .' id="ocd-event-'. $shortcode_i . '-' . $event_i .'-title" class="ocd-event-title">';
+					$slides .= '<a href="'. esc_url( get_permalink( $post_id ) ) .'" title="'. $event_name .'">'. $event_name .'</a>';
+				$slides .= '</'. $atts['title_tag'] .'>';
 
-					$list_items .= '<p class="ocd-event-dates">';
-						$list_items .= '<time datetime="'. date( 'Y-m-d\TH:i:s', strtotime( $start_date .', '. $date_time->start_time() ) ) .'">'. $start_date .'</time>';
-						$list_items .= $start_date === $end_date ? '' : ' - <time datetime="'. date( 'Y-m-d\TH:i:s', strtotime( $end_date .', '. $date_time->end_time() ) ) .'">'. $end_date .'</time>';
-					$list_items .= '</p>';
+				$slides .= '<p class="ocd-event-dates">';
+					$slides .= '<time datetime="'. date( 'Y-m-d\TH:i:s', strtotime( $start_date .', '. $date_time->start_time() ) ) .'">'. $start_date .'</time>';
+					$slides .= $start_date === $end_date ? '' : ' - <time datetime="'. date( 'Y-m-d\TH:i:s', strtotime( $end_date .', '. $date_time->end_time() ) ) .'">'. $end_date .'</time>';
+				$slides .= '</p>';
 
-					$list_items .= '<p class="ocd-event-description">'. esc_html( get_the_excerpt( $post_id ) ) .'</p>';
+				$slides .= '<p class="ocd-event-description">'. esc_html( get_the_excerpt( $post_id ) ) .'</p>';
 
-				$list_items .= '</article>';
-			$list_items .= '</li>';
+			$slides .= '</article>';
 
 			// Build bullets HTML for navigation
 			$bullets .= '<button class="glide__bullet" data-glide-dir="='. $event_i .'"><span aria-hidden="true">'. $event_i .'</span></button>';
@@ -161,9 +159,9 @@ class OCD_UpcomingEvents {
 		$html .= '<div id="'. $shortcode_id .'" class="'. $this->slug . $atts['class'] .'">';
 
 			$html .= '<div class="glide__track" data-glide-el="track">';
-				$html .= '<ul class="glide__slides">';
-					$html .= $list_items;
-				$html .= '</ul>';
+				$html .= '<div class="glide__slides">';
+					$html .= $slides;
+				$html .= '</div>';
 			$html .= '</div>';
 
 			// Add navigation arrows if enabled
@@ -246,11 +244,6 @@ class OCD_UpcomingEvents {
 		<style>
 			<?php echo $class; ?> .glide__track {
 				border-radius: 6px;
-			}
-
-			<?php echo $class; ?> ul.glide__slides {
-				list-style-type: none !important;
-				padding: 0 0 0 0 !important;
 			}
 
 			<?php echo $class; ?> .glide__bullets {

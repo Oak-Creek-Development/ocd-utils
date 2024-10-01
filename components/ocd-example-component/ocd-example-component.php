@@ -83,7 +83,7 @@ class OCD_ExampleComponent {
 		// Create a unique ID for each instance of the shortcode to avoid conflicts.
 		static $shortcode_i = -1;
 		$shortcode_i++;
-		$shortcode_id = $this->slug .'_' . $shortcode_i;
+		$shortcode_id = $this->slug .'-' . $shortcode_i;
 	
 		// Enqueue dependencies, scripts, styles if needed
 		$vanilla_tilt_dir = OCD_UTILS_URL . 'node_modules/vanilla-tilt/dist/';
@@ -101,7 +101,7 @@ class OCD_ExampleComponent {
 
 		// Build the HTML output for the component.
 		$html = '';
-		$html .= '<div id="'. $shortcode_id .'" class="ocd_example'. $atts['class'] .'" style="'. $outer_div_style .'">';
+		$html .= '<div id="'. $shortcode_id .'" class="'. $this->slug . $atts['class'] .'" style="'. $outer_div_style .'">';
 			$html .= '<div style="'. $inner_div_style .'"></div>';
 		$html .= '</div>';
 

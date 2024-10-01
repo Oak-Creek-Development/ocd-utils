@@ -118,7 +118,7 @@ class OCD_FilterPortfolio {
 		// Create a unique ID for each instance of the shortcode to avoid conflicts.
 		static $shortcode_i = -1;
 		$shortcode_i++;
-		$shortcode_id = $this->slug .'_' . $shortcode_i;
+		$shortcode_id = $this->slug .'-' . $shortcode_i;
 	
 		// Enqueue dependencies, scripts, styles
 		$this->enqueue_scripts();
@@ -154,6 +154,9 @@ class OCD_FilterPortfolio {
 				$project_categories_badges .= '<li>'. $project_category->name .'</li>';
 
 				if ( ! empty( $atts['show_filters'] ) && 'false' !== $atts['show_filters'] && empty( $atts['projects_page_slug'] ) ) {
+					if ( ! isset( $cats_counter[$project_category->term_id] ) ) {
+						$cats_counter[$project_category->term_id] = 0;
+					}
 					$cats_counter[$project_category->term_id]++;
 
 					$project_categories_classes .= ' ' . $project_category->slug;
@@ -344,12 +347,12 @@ class OCD_FilterPortfolio {
 
 		$isotope_url = OCD_UTILS_URL . 'node_modules/isotope-layout/dist/isotope.pkgd.min.js';
 		$isotope_version = ocd_nodejs_dependency_version( 'isotope-layout' );
-		wp_enqueue_script( 'isotope-layout', $isotope_url, array( 'jquery' ), $isotope_version, $script_args );
+		wp_enqueue_script( 'isotope-layout', $isotope_url, array( 'jquery', 'imagesloaded' ), $isotope_version, $script_args );
 
 		wp_enqueue_script( 
 			$this->slug, 
 			OCD_UTILS_URL .'components/'. $this->slug .'/'. $this->slug .'.js', 
-			array( 'isotope-layout', 'imagesloaded' ), 
+			array( 'jquery', 'imagesloaded', 'isotope-layout' ), 
 			$this->version, 
 			$script_args 
 		);
@@ -387,9 +390,9 @@ class OCD_FilterPortfolio {
 		// Register this component's settings.
 		ocd_register_settings( $this->config );
 
-		add_action( 'admin_notices',  array( $this, 'admin_notices'                  ) );
-		add_action( 'add_meta_boxes', array( $this, 'add_meta_boxes'                 ) );
-		add_action( 'save_post',      array( $this, 'save_project_url_meta_box_data' ) );
+		add_action( 'admin_notices',  array( $this, 'admin_notices'                  ), 10    );
+		add_action( 'add_meta_boxes', array( $this, 'add_meta_boxes'                 ), 10    );
+		add_action( 'save_post',      array( $this, 'save_project_url_meta_box_data' ), 10, 1 );
 	}
 
 	/**
@@ -416,7 +419,7 @@ class OCD_FilterPortfolio {
 			</ul>
 			<h4><?php _e( 'Examples', 'ocdutils' ); ?></h4>
 			<p><code>[ocd_filter_portfolio]</code> <?php _e( 'All default settings.', 'ocdutils' ) ?></p>
-			<p><code>[ocd_filter_portfolio limit="6" show_filters="false" category_slugs="category-abc, category-qrs, category-xyz"]</code></p>
+			<p><code>[ocd_filter_portfolio limit="6" show_filters="false" category_slugs="category-abc, category-lmno, category-xyz"]</code></p>
 			<p><code>[ocd_filter_portfolio limit="21" show_filters="true"]</code></p>
 			<p><?php _e( 'Use all attributes, or none, or mix-and-match. Any attributes omitted from the shortcode will use the default value.', 'ocdutils' ); ?></p>
 			<br /><br />
@@ -473,7 +476,7 @@ class OCD_FilterPortfolio {
 				),
 				array(
 					'id' => 'usage',
-					'label' => __( 'Shortcode Instructions', 'ocdutils' ),
+					'label' => __( 'Portfolio Shortcode Instructions', 'ocdutils' ),
 					'description' => $this->usage_instructions(),
 				),
 				// Additional sections can be defined here.
