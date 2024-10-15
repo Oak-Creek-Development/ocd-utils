@@ -63,7 +63,8 @@ jQuery(function ($) {
       $instance = $("body");
     }
 
-    $instance.find(".ocdfp-items").isotope({
+    let $items = $instance.find(".ocdfp-items");
+    $items.isotope({
       filter: function () {
         if ("*" === currentFilter) {
           return true; // Show all items
@@ -82,6 +83,21 @@ jQuery(function ($) {
       .addClass("is-checked");
 
     if (instanceNum !== "") {
+      $items.off("arrangeComplete").on("arrangeComplete", function () {
+        let scrollTop = $(window).scrollTop();
+        let windowHeight = $(window).height();
+        if (
+          $instance.offset().top + $instance.outerHeight() <
+            scrollTop + windowHeight / 4 ||
+          scrollTop + windowHeight >= $(document).height()
+        ) {
+          $("html, body").animate(
+            { scrollTop: $instance.offset().top - 20 },
+            500
+          );
+        }
+      });
+
       $modals = $('.ocdfp-modal[id$="' + instanceNum + '"]');
       $modals.find(".ocdfp-categories a").removeClass("is-checked");
       $modals
@@ -105,9 +121,9 @@ jQuery(function ($) {
     /***************************** ISOTOPE *******************************/
     $(".ocdfp-wrapper").each(function () {
       let $instance = $(this);
-      let $isotope = $instance.find(".ocdfp-items");
+      let $items = $instance.find(".ocdfp-items");
 
-      $isotope.isotope({
+      $items.isotope({
         itemSelector: ".ocdfp-item",
         percentPosition: true,
         masonry: {
@@ -116,8 +132,8 @@ jQuery(function ($) {
         },
       });
 
-      $isotope.imagesLoaded().progress(function () {
-        $isotope.isotope("layout");
+      $items.imagesLoaded().progress(function () {
+        $items.isotope("layout");
       });
 
       $instance.find(".ocdfp-spinner").hide();
