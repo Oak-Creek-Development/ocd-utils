@@ -79,7 +79,7 @@ class OCD_AdminSettings {
 				}
 
 				if ( ! empty( $section['description'] ) ) {
-					$config['components'][$ck]['sections'][$sk]['description'] = esc_html( $section['description'] );
+					$config['components'][$ck]['sections'][$sk]['description'] = wp_kses( $section['description'], 'post' );
 				}
 
 				if ( empty( $section['fields'] ) ) continue;
@@ -93,7 +93,7 @@ class OCD_AdminSettings {
 					}
 
 					if ( ! empty( $field['description'] ) ) {
-						$config['components'][$ck]['sections'][$sk]['fields'][$fk]['description'] = esc_html( $field['description'] );
+						$config['components'][$ck]['sections'][$sk]['fields'][$fk]['description'] = wp_kses( $field['description'], 'post' );
 					}
 
 				}
@@ -179,8 +179,8 @@ class OCD_AdminSettings {
 
 				add_settings_section(
 					$section['id'],
-					$section['label'],
-					function() use ( $section ) { echo isset( $section['description'] ) ? html_entity_decode( $section['description'] ) : ''; },
+					'<br /><br />' . $section['label'],
+					function() use ( $section ) { echo isset( $section['description'] ) ? $section['description'] : ''; },
 					$this->component['slug']
 				);
 
@@ -348,6 +348,28 @@ class OCD_AdminSettings {
 		echo '<input type="number"'. $atts .' />';
 
 		if ( ! empty( $field['description'] ) ) echo '<p class="description">'. $field['description'] .'</p>';
+	}
+	
+	/**
+	 * Generates input field html for type: color.
+	 *
+	 * @param array $field Field configuration.
+	 * @return string Input field html as a string.
+	 */
+	public function render_field_color( $field ) {
+		$val = $this->get_val( $field );
+
+		$atts = $this->field_atts( $field );
+		$atts .= empty( $val ) ? '' : ' value="'. esc_html( $val ) .'"';
+	
+		echo '<input type="text"'. $atts .' />';
+
+		if ( ! empty( $field['description'] ) ) echo '<p class="description">'. $field['description'] .'</p>';
+
+		/* Color Picker */
+		wp_enqueue_style( 'wp-color-picker' );
+		wp_enqueue_script( 'wp-color-picker' );
+		wp_add_inline_script( 'wp-color-picker', 'jQuery(document).ready(function($){ $("#'. esc_attr( $field['id'] ) .'").wpColorPicker(); });' );
 	}
 	
 	/**

@@ -47,6 +47,13 @@ class OCD_FilterPortfolio {
 	public $options = array();
 
 	/**
+	 * Holds the taxonomies for all registered post types.
+	 *
+	 * @var array
+	 */
+	private $post_type_taxonomies = array();
+
+	/**
 	 * Constructor to initialize the component.
 	 */
 	public function __construct() {
@@ -85,34 +92,48 @@ class OCD_FilterPortfolio {
 
 		// Sanitize and process attributes
 		$limit = intval( $atts['limit'] );
-		$show_filters = filter_var( sanitize_text_field( $atts['show_filters'] ), FILTER_VALIDATE_BOOLEAN );
+		$show_filters = filter_var( $atts['show_filters'], FILTER_VALIDATE_BOOLEAN );
 
-		$category_slugs_str = trim( esc_html( sanitize_text_field( $atts['category_slugs'] ) ) );
+		$category_slugs_str = trim( sanitize_text_field( $atts['category_slugs'] ) );
 		$category_slugs_str = str_replace( array( ',', '    ', '   ', '  ', '  ' ), ' ', $category_slugs_str );
 		$category_slugs_r = array_map( 'esc_attr', explode( ' ', $category_slugs_str ) );
 
 		$portfolio_page_id = intval( $options['portfolio_page_id'] );
-		$portfolio_page_slug = get_post_field( 'post_name', $portfolio_page_id );
+		$portfolio_page_url = esc_url( get_permalink( $portfolio_page_id ) );
+
+		$tax_cats = $options['projects_tax_cats'] ?: '';
+		if ( '' === $tax_cats ) {
+			// TODO: If the user didn't specify a taxonomy for "Categories" in the options
+			// maybe i want to loop through the taxonomies for the chosen post type and pick one that contains substr "cat"
+			// or maybe don't do this, its prob not necessary
+		}
+
+		$tax_tags = $options['projects_tax_tags'] ?: '';
+		if ( '' === $tax_tags ) {
+			// TODO: If the user didn't specify a taxonomy for "Tags" in the options
+			// maybe i want to loop through the taxonomies for the chosen post type and pick one that contains substr "tag"
+			// or maybe don't do this, its prob not necessary
+		}
 
 		// Set up post query
-		$projects_query_args = array(
+		$query_args = array(
 			'numberposts' => $limit,
 			'post_type'   => $options['projects_post_type'],
 		);
 
 		// Add tax_query for project categories if provided in shortcode
-		if ( ! empty( $category_slugs_r[0] ) ) {
-			$projects_query_args['tax_query'] = array( array(
-				'taxonomy' => 'project_category',
+		if ( ! empty( $category_slugs_r[0] ) && ! empty( $tax_cats ) ) {
+			$query_args['tax_query'] = array( array(
+				'taxonomy' => $tax_cats,
 				'field'    => 'slug',
 				'terms'    => $category_slugs_r,
 			) );
 		}
 
-		$projects = get_posts( $projects_query_args );
+		$projects = get_posts( $query_args );
 
 		if ( empty( $projects ) ) {
-			return '<p>'. esc_html( __( 'No Projects Found.', 'ocdutils' ) ) .'</p>';
+			return '<p>'. esc_html__( 'No Projects Found.', 'ocdutils' ) .'</p>';
 		}
 	
 		// Create a unique ID for each instance of the shortcode to avoid conflicts.
@@ -124,150 +145,184 @@ class OCD_FilterPortfolio {
 		$this->enqueue_scripts();
 
 		$projects_count = 0;
-		$cats_counter = array();
+		$cats = array();
 		$items = '';
-		foreach ( $projects as $project ) :
-
-
+		foreach ( $projects as $project ) {
 
 			if ( ! has_post_thumbnail( $project->ID ) ) continue;
 			$projects_count++;
-			$project_meta = get_post_meta( $project->ID );
-
-
+			$project_url = get_post_meta( $project->ID, '_ocd_filter_portfolio_project_url', true );
 
 			$project_tags_badges = '';
-			$project_tags = get_the_terms( $project->ID, 'project_tag' );
-			if ( ! empty( $project_tags ) ) {
+			$project_tags = get_the_terms( $project->ID, $tax_tags );
+			if ( is_array( $project_tags ) ) {
 				foreach ( $project_tags as $project_tag ) {
-					$project_tags_badges .= '<li>'. $project_tag->name .'</li>';
+					$project_tags_badges .= '<li>'. esc_html( $project_tag->name ) .'</li>';
 				}
 			}
 
-
-
-			$project_categories_classes = '';
+			$project_categories_data_attr_str = '';
 			$project_categories_links = '';
-			$project_categories_badges = '';
-			$project_categories = get_the_terms( $project->ID, 'project_category' );
-			foreach ( $project_categories as $project_category ) {
-				$project_categories_badges .= '<li>'. $project_category->name .'</li>';
+			$project_categories = get_the_terms( $project->ID, $tax_cats );
+			if ( is_array( $project_categories ) ) {
+				foreach ( $project_categories as $category ) {
+					$cat_id = null;
+					$cat_id = $category->term_id;
 
-				if ( ! empty( $atts['show_filters'] ) && 'false' !== $atts['show_filters'] && empty( $atts['projects_page_slug'] ) ) {
-					if ( ! isset( $cats_counter[$project_category->term_id] ) ) {
-						$cats_counter[$project_category->term_id] = 0;
+					if ( ! isset( $cats[$cat_id] ) ) {
+						$cats[$cat_id] = array(
+							'slug'  => esc_attr( $category->slug ),
+							'name'  => esc_html( $category->name ),
+							'count' => 0,
+						);
 					}
-					$cats_counter[$project_category->term_id]++;
+					$cats[$cat_id]['count']++;
 
-					$project_categories_classes .= ' ' . $project_category->slug;
-					$project_categories_links .= '<li><a class="lmgpgdfs" title="'. $project_category->name .'" href="#" data-filter=".'. $project_category->slug .'" >'. $project_category->name .'</a></li>';
-				} else {
-					$project_categories_links .= '<li><a class="lmgpgdfs" title="'. $project_category->name .'" href="'. trailingslashit( home_url( $atts['projects_page_slug'] ) ) . '#' . $project_category->slug .'">'. $project_category->name .'</a></li>';
+					$project_categories_data_attr_str .= ' ' . $cats[$cat_id]['slug'];
+
+					$href = '#' . $cats[$cat_id]['slug'];
+					if ( ! empty( $portfolio_page_url ) ) {
+						$href = trailingslashit( $portfolio_page_url ) . $href;
+					}
+					$project_categories_links .= '<li>';
+						$project_categories_links .= '<a title="'. $cats[$cat_id]['name'] .'" href="'. $href .'" data-ocdfp-filter="'. $cats[$cat_id]['slug'] .'">';
+							$project_categories_links .= $cats[$cat_id]['name'];
+						$project_categories_links .= '</a>';
+					$project_categories_links .= '</li>';
 				}
+				$project_categories_data_attr_str = trim( $project_categories_data_attr_str );
 			}
 
+			$post_thumbnail_id = get_post_thumbnail_id( $project->ID );
+			$meta = wp_get_attachment_metadata( $post_thumbnail_id );
 
+			if ( isset( $meta['sizes']['ocd-filter-portfolio-thumb'] ) ) {
+				$project_image_thumb = get_the_post_thumbnail( $project->ID, 'ocd-filter-portfolio-thumb' );
+			} else {
+				$project_image_thumb = get_the_post_thumbnail( $project->ID, 'thumbnail' );
+			}
 
-			$items .= '<article class="lmg-project-item'. $project_categories_classes .'">';
+			if ( isset( $meta['sizes']['ocd-filter-portfolio-full'] ) ) {
+				$project_image_full = get_the_post_thumbnail( $project->ID, 'ocd-filter-portfolio-full' );
+			} else {
+				$project_image_full = get_the_post_thumbnail( $project->ID, 'full' );
+			}
 
-				$items .= '<div class="lmg-project-item-content">';
-					$items .= '<a class="lmg-project-item-image lmgpmt" href="#" title="'. $project->post_title .'" data-micromodal-trigger="modal-'. $project->post_name .'">';
-						$items .= get_the_post_thumbnail( $project->ID, 'lmg-project-grid-divi-thumb' );
-					$items .= '</a>';
-					$items .= '<h3>';
-						$items .= '<a class="lmgpmt" href="#" title="'. $project->post_title .'" data-micromodal-trigger="modal-'. $project->post_name .'">'. $project->post_title .'</a>';
-					$items .= '</h3>';
-					$items .= '<ul class="lmg-project-item-categories">'. $project_categories_links .'</ul>';
+			$item_id = $project->post_name .'-'. $shortcode_i;
+
+			$items .= '<article class="ocdfp-item" data-categories="'. $project_categories_data_attr_str .'">';
+
+				$items .= '<div class="ocdfp-item-image" data-micromodal-trigger="'. $item_id .'">';
+					$items .= $project_image_thumb;
 				$items .= '</div>';
+				$items .= '<h3 class="ocdfp-item-title" data-micromodal-trigger="'. $item_id .'">'. $project->post_title .'</h3>';
+				$items .= ! empty( $project_categories_links ) ? '<ul class="ocdfp-categories">'. $project_categories_links .'</ul>' : '';
 
-				$items .= '<div class="lmgpgd-micromodal" id="modal-'. $project->post_name .'" aria-hidden="true" style="display: none;">';
-					$items .= '<div class="modal__overlay" tabindex="-1" data-micromodal-close>';
-						$items .= '<div class="modal__container" role="dialog" aria-modal="true" aria-labelledby="modal-'. $project->post_name .'-title">';
-							$items .= '<header class="modal__header">';
-								$items .= '<h2 class="modal__title" id="modal-'. $project->post_name .'-title">Project: '. $project->post_title .'</h2>';
-								$items .= '<button class="modal__close" aria-label="Close modal" data-micromodal-close></button>';
+				$items .= '<div class="ocdfp-modal" id="'. $item_id .'" aria-hidden="true" style="display: none;">';
+					$items .= '<div class="modal-overlay" tabindex="-1" data-micromodal-close>';
+						$items .= '<div class="modal-container" role="dialog" aria-modal="true" aria-labelledby="'. $item_id .'-title">';
+
+							$items .= '<header class="modal-header">';
+								$items .= '<h2 class="modal-title" id="'. $item_id .'-title"><span>'. esc_html__( 'Project:', 'ocdutils' ) .'</span> '. $project->post_title .'</h2>';
+								$items .= '<button class="modal-close" aria-label="'. esc_html__( 'Close modal', 'ocdutils' ) .'" data-micromodal-close></button>';
 							$items .= '</header>';
-							$items .= '<main class="modal__content" id="modal-'. $project->post_name .'-content">';
 
-								$items .= '<div class="lmg-project-modal-detail">';
-									$items .= '<div class="lmg-project-modal-detail-container">';
+							$items .= '<section class="modal-content">';
 
-										if ( ! empty( $project_categories_badges ) ) {
-											$items .= '<div class="lmg-project-modal-type">';
-												$items .= '<h3>Project Type</h3>';
-												$items .= '<ul class="lmg-project-modal-badges">'. $project_categories_badges .'</ul>';
-											$items .= '</div>';
+								$items .= '<div class="ocdfp-detail-wrapper">';
+									$items .= '<div class="ocdfp-detail">';
+
+										if ( ! empty( $project_categories_links ) ) {
+											$items .= '<h3 class="ocdfp-detail-section">'. $options['projects_tax_cats_label'] .'</h3>';
+											$items .= '<ul class="ocdfp-categories">'. $project_categories_links .'</ul>';
 										}
 
 										if ( ! empty( $project_tags_badges ) ) {
-											$items .= '<div class="lmg-project-modal-features">';
-												$items .= '<h3>Project Features</h3>';
-												$items .= '<ul class="lmg-project-modal-badges">'. $project_tags_badges .'</ul>';
-											$items .= '</div>';
+											$items .= '<h3 class="ocdfp-detail-section">'. $options['projects_tax_tags_label'] .'</h3>';
+											$items .= '<ul class="ocdfp-tags">'. $project_tags_badges .'</ul>';
 										}
 
 										$project_main_description = get_the_content( null, false, $project );
 										if ( ! empty( $project_main_description ) ) {
-											$items .= '<div class="lmg-project-modal-description">';
-												$items .= '<h3 class="lmg-project-modal-description-section">Project Description</h3>';
-												$items .= wpautop( $project_main_description );
-											$items .= '</div>';
+											$items .= '<h3 class="ocdfp-detail-section">'. esc_html__( 'Project Description', 'ocdutils' ) .'</h3>';
+											$items .= wpautop( $project_main_description );
 										}
 
 									$items .= '</div>';
-									$items .= '<div class="lmgpgd-spreader"><span>&nbsp</span></div>';
+									$items .= '<div class="ocdfp-spreader"><span>&nbsp;</span></div>';
 								$items .= '</div>';
 
-								$items .= '<div class="lmg-project-modal-image">'. get_the_post_thumbnail( $project->ID, 'lmg-project-grid-divi-full' ) .'</div>';
+								$items .= '<div class="ocdfp-image-wrapper">';
+									$items .= '<div class="ocdfp-image">';
+										$items .= $project_image_full;
+									$items .= '</div>';
+								$items .= '</div>';
 
-							$items .= '</main>';
-							$items .= '<footer class="modal__footer">';
-								if ( ! empty( $project_meta['url'][0] ) ) {
-									//$items .= '<a href="'. $project_meta['url'][0] .'" title="'. $project->post_title .'" rel="external" target="_blank">Visit the '. $project->post_title ." Website</a>";
-									$items .= '<a href="'. $project_meta['url'][0] .'" title="'. $project->post_title .'" rel="external" target="_blank">Visit Website</a>';
+							$items .= '</section>';
+
+							$items .= '<footer class="modal-footer">';
+								if ( ! empty( $project_url ) ) {
+									$items .= '<a href="'. $project_url .'" title="'. $project->post_title .'" rel="external" target="_blank">'. esc_html__( 'Visit Website', 'ocdutils' ) .'</a>';
 								}
-								$items .= '<button class="modal__btn" data-micromodal-close aria-label="Close this dialog window">Close</button>';
+								$items .= '<button class="modal-btn" data-micromodal-close aria-label="'. esc_html__( 'Close this dialog window', 'ocdutils' ) .'">';
+									$items .= esc_html__( 'Close', 'ocdutils' );
+								$items .= '</button>';
 							$items .= '</footer>';
+
 						$items .= '</div>';
 					$items .= '</div>';
 				$items .= '</div>';
 
 			$items .= '</article>';
 
-
-
-		endforeach;
-
-
+		}
 
 		$filters = '';
-		$filter_class_str = 'no-filter';
-		if ( ! empty( $atts['show_filters'] ) && 'false' !== $atts['show_filters'] ) {
-			$filter_class_str = 'filter';
+		if ( $show_filters && ! empty( $cats ) ) {
+			usort( $cats, function( $a, $b ) {
+				return $b['count'] <=> $a['count'];
+			} );
 
-			$categories = get_terms( array( 'taxonomy' => 'project_category', 'orderby' => 'count', 'order' => 'DESC' ) );
+			$filters .= '<ul class="ocdfp-filters" style="opacity: 0;">';
+				$filters .= '<li><button data-ocdfp-filter="*">Show All <span>'. $projects_count .'</span></button></li>';
+				foreach ( $cats as $category ) {
+					if ( 2 > $category['count'] ) continue;
 
-			$filters .= '<ul class="lmgpgdf" style="opacity: 0;">';
-				$filters .= '<li><a href="#" class="lmgpgdfs" data-filter="*">Show All <span>'. $projects_count .'</span></a></li>';
-				foreach ( $categories as $category ) {
-					$filter_button_visibility_str = '';
-					if ( 2 > $category->count ) $filter_button_visibility_str = ' style="display: none;"';
-
-					$filters .= '<li'. $filter_button_visibility_str .'>';
-						$filters .= '<a href="#" class="lmgpgdfs" data-filter=".'. $category->slug .'">'. $category->name .' <span>'. $cats_counter[$category->term_id] .'</span></a>';
+					$filters .= '<li>';
+						$filters .= '<button data-ocdfp-filter="'. $category['slug'] .'">';
+							$filters .= $category['name'] .' <span>'. $category['count'] .'</span>';
+						$filters .= '</button>';
 					$filters .= '</li>';
 				}
 			$filters .= '</ul>';
 		}
-		
 
+		ob_start();
+		?>
+		<style>
+			:root {
+				--ocdfp-color-primary: <?php echo $options['color_primary']; ?>;
+				--ocdfp-color-secondary: <?php echo $options['color_secondary']; ?>;
+				--ocdfp-color-text-light: <?php echo $options['color_text_light']; ?>;
+				--ocdfp-color-text-dark: <?php echo $options['color_text_dark']; ?>;
+				--ocdfp-external-link-icon: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--!Font Awesome Free 6.5.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2024 Fonticons, Inc.--><path fill="<?php echo urlencode( $options['color_primary'] ); ?>" d="M320 0c-17.7 0-32 14.3-32 32s14.3 32 32 32h82.7L201.4 265.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L448 109.3V192c0 17.7 14.3 32 32 32s32-14.3 32-32V32c0-17.7-14.3-32-32-32H320zM80 32C35.8 32 0 67.8 0 112V432c0 44.2 35.8 80 80 80H400c44.2 0 80-35.8 80-80V320c0-17.7-14.3-32-32-32s-32 14.3-32 32V432c0 8.8-7.2 16-16 16H80c-8.8 0-16-7.2-16-16V112c0-8.8 7.2-16 16-16H192c17.7 0 32-14.3 32-32s-14.3-32-32-32H80z"/></svg>');
+			}
+		</style>
+		<?php
+		$style_vars = ob_get_clean();
+
+		$classes = 'ocdfp-wrapper';
+		if ( $portfolio_page_id == get_the_ID() ) {
+			$classes .= ' link-internal';
+		}
 		
 		$html  = '';
-		$html .= '<div class="lmgpgd-wrapper">';
+		$html .= '<div id="'. $shortcode_id .'" class="'. $classes .'">';
+			$html .= $style_vars;
 			$html .= $this->loading_spinner();
 			$html .= $filters;
-			$html .= '<div class="lmgpgd-container" style="opacity: 0;">';
-				$html .= '<div class="lmgpgdis"></div>';
+			$html .= '<div class="ocdfp-items" style="opacity: 0;">';
+				$html .= '<div class="ocdfp-item-sizer"></div>';
 				$html .= $items;
 			$html .= '</div>';
 		$html .= '</div>';
@@ -275,12 +330,13 @@ class OCD_FilterPortfolio {
 		return $html;
 	}
 
-
 	private function loading_spinner() {
+		$options = ocd_get_options( $this );
+
 		ob_start();
 		?>
 		<style>
-			.lmgpgd-spinner {
+			.ocdfp-spinner {
 				display: grid;
 				grid-template-columns: repeat(auto-fit,minmax(250px,1fr));
 				grid-auto-rows: 130px;
@@ -288,19 +344,19 @@ class OCD_FilterPortfolio {
 				box-sizing: border-box;
 			}
 	
-			.lmgpgd-spinner > div {
+			.ocdfp-spinner > div {
 				width: 50px;
 				aspect-ratio: 1;
 				display: grid;
 				border: 4px solid #0000;
 				border-radius: 50%;
-				border-color: #ccc #0000;
-				animation: lmgpgd-spin 1s infinite linear;
+				border-color: <?php echo $options['color_secondary']; ?> #0000;
+				animation: ocdfp-spin 1s infinite linear;
 				box-sizing: border-box;
 			}
 	
-			.lmgpgd-spinner > div::before,
-			.lmgpgd-spinner > div::after {    
+			.ocdfp-spinner > div::before,
+			.ocdfp-spinner > div::after {    
 				content: '';
 				grid-area: 1/1;
 				margin: 2px;
@@ -309,18 +365,18 @@ class OCD_FilterPortfolio {
 				box-sizing: border-box;
 			}
 	
-			.lmgpgd-spinner > div::before {
-				border-color: #f03355 #0000;
+			.ocdfp-spinner > div::before {
+				border-color: <?php echo $options['color_primary']; ?> #0000;
 				animation: inherit; 
 				animation-duration: .5s;
 				animation-direction: reverse;
 			}
 	
-			.lmgpgd-spinner > div::after { margin: 8px; }
+			.ocdfp-spinner > div::after { margin: 8px; }
 	
-			@keyframes lmgpgd-spin { 100%{transform: rotate(1turn)} }
+			@keyframes ocdfp-spin { 100%{transform: rotate(1turn)} }
 		</style>
-		<div class="lmgpgd-spinner"><div></div></div>
+		<div class="ocdfp-spinner"><div></div></div>
 		<?php
 		return ob_get_clean();
 	}
@@ -390,9 +446,15 @@ class OCD_FilterPortfolio {
 		// Register this component's settings.
 		ocd_register_settings( $this->config );
 
-		add_action( 'admin_notices',  array( $this, 'admin_notices'                  ), 10    );
-		add_action( 'add_meta_boxes', array( $this, 'add_meta_boxes'                 ), 10    );
-		add_action( 'save_post',      array( $this, 'save_project_url_meta_box_data' ), 10, 1 );
+		add_action( 'admin_notices',         array( $this, 'admin_notices'                  ), 10    );
+		add_action( 'add_meta_boxes',        array( $this, 'add_meta_boxes'                 ), 10    );
+		add_action( 'save_post',             array( $this, 'save_project_url_meta_box_data' ), 10, 1 );
+		add_action( 'edit_form_after_title', array( $this, 'project_content_instructions'   ), 10, 1 );
+
+		$options = ocd_get_options( $this );
+		if ( isset( $options['projects_post_type'] ) && 'ocd-project' == $options['projects_post_type'] ) {
+			$this->register_post_types();
+		}
 	}
 
 	/**
@@ -418,11 +480,10 @@ class OCD_FilterPortfolio {
 				</li>
 			</ul>
 			<h4><?php _e( 'Examples', 'ocdutils' ); ?></h4>
-			<p><code>[ocd_filter_portfolio]</code> <?php _e( 'All default settings.', 'ocdutils' ) ?></p>
-			<p><code>[ocd_filter_portfolio limit="6" show_filters="false" category_slugs="category-abc, category-lmno, category-xyz"]</code></p>
+			<p><code>[ocd_filter_portfolio]</code> <?php _e( 'All default settings. Use this on your main portfolio page.', 'ocdutils' ) ?></p>
+			<p><code>[ocd_filter_portfolio limit="6" show_filters="false" category_slugs="category-abc, category-lmno, category-xyz"]</code> <?php _e( 'Use something like this on other pages.', 'ocdutils' ) ?></p>
 			<p><code>[ocd_filter_portfolio limit="21" show_filters="true"]</code></p>
 			<p><?php _e( 'Use all attributes, or none, or mix-and-match. Any attributes omitted from the shortcode will use the default value.', 'ocdutils' ); ?></p>
-			<br /><br />
 		</div>
 		<?php
 		return ob_get_clean();
@@ -435,49 +496,145 @@ class OCD_FilterPortfolio {
 	 */
 	private function define_config_r() {
 		/**************************************/
-		// Don't use esc_html(), esc_attr(), etc. here.
+		// Don't use esc_html(), esc_attr(), wp_kses(), etc. here.
 		// Labels, descriptions, attributes, etc. will be escaped before output.
 		// Only use __(), _e(), etc. for translatable strings.
 		/**************************************/
+
+		$portfolio_page_id_options = array( 
+			'' => __( '--Select a Page--', 'ocdutils' ),
+		);
+
+		$projects_post_type_options = array( 
+			'' => __( '--Select a Post Type--', 'ocdutils' ), 
+			'ocd-project' => __( 'OCD Projects', 'ocdutils' ),
+		);
+
+		if ( is_admin() && isset( $_GET['tab'] ) && $this->slug === $_GET['tab'] ) {
+			$post_types = get_post_types( array( 'public' => true ), 'objects' );
+			if ( is_array( $post_types ) ) {
+				foreach ( $post_types as $post_type_slug => $post_type ) {
+					$tax = null;
+					$tax = get_object_taxonomies( $post_type_slug, 'objects' );
+					if ( is_array( $tax ) ) {
+						foreach ( $tax as $tax_slug => $tax_r ) {
+							$this->post_type_taxonomies[$post_type_slug][$tax_slug] = $tax_r->label;
+						}
+					}
+				}
+			}
+			$this->post_type_taxonomies['ocd-project']['ocd-project-category'] = __( 'Project Categories', 'ocdutils' );
+			$this->post_type_taxonomies['ocd-project']['ocd-project-tag'] = __( 'Project Tags', 'ocdutils' );
+
+			add_action( 'admin_enqueue_scripts', array( $this, 'taxonomies_select_switcher' ) );
+
+			$portfolio_page_id_options = $portfolio_page_id_options + wp_list_pluck( 
+				get_pages(), 
+				'post_title', 
+				'ID' 
+			);
+
+			$projects_post_type_options = $projects_post_type_options + wp_list_pluck( 
+				$post_types, 
+				'label', 
+				'name' 
+			);
+		}
+
 		return array(
 			'slug' => $this->slug,
 			'label' => __( 'Filter Portfolio', 'ocdutils' ), // Tab name in the settings page.
 			'sections' => array(
 				array(
+					'id' => 'usage',
+					'label' => __( 'Portfolio Shortcode Instructions', 'ocdutils' ),
+					'description' => $this->usage_instructions(),
+				),
+				array(
 					'id' => 'portfolio',
-					'label' => __( 'Portfolio Settings', 'ocdutils' ),
+					'label' => __( 'Portfolio Functions', 'ocdutils' ),
 					'fields' => array(
 						array(
 							'id' => 'portfolio_page_id',
 							'label' => __( 'Portfolio Page', 'ocdutils' ),
 							'type' => 'select',
-							'description' => __( 'Choose the page that contains your full portfolio with filters. Other small portfolio shortcodes will link to this main one.', 'ocdutils' ),
+							'description' => __( 'Choose the page where you will place the default shortcode (your full portfolio with filters). Other portfolio shortcodes will link to this main one.', 'ocdutils' ),
 							'required' => true,
-							'options' => array( '' => __( '--Select a Page--', 'ocdutils' ) ) + wp_list_pluck( 
-								get_pages(), 
-								'post_title', 
-								'ID' 
-							),
+							'options' => $portfolio_page_id_options ?: array(),
 						),
 						array(
 							'id' => 'projects_post_type',
 							'label' => __( 'Projects Post Type', 'ocdutils' ),
 							'type' => 'select',
-							'description' => __( 'Choose the post type that is used for your projects in your portfolio. You should use a post type that supports "title", "editor", and "thumbnail". Default is "Projects".', 'ocdutils' ),
+							'description' => __( 'Choose the post type that is used for your projects in your portfolio. You should use a post type that supports "title", "editor", and "thumbnail".', 'ocdutils' ),
 							'required' => true,
-							'default' => 'project',
-							'options' => array( '' => __( '--Select a Post Type--', 'ocdutils' ) ) + wp_list_pluck( 
-								get_post_types( array( 'public' => true, '_builtin' => false ), 'objects' ), 
-								'label', 
-								'name' 
-							),
+							'options' => $projects_post_type_options ?: array(),
+						),
+						array(
+							'id' => 'projects_tax_cats',
+							'label' => __( 'Project "Categories" Taxonomy', 'ocdutils' ),
+							'type' => 'select',
+							'description' => __( 'Choose the taxonomy from your "Post Type" that will be used for filtering. (This taxonomy is also used for the "category_slugs" shortcode attribute.)', 'ocdutils' ),
+							'options' => array( '' => __( '--Select your "Categories" Taxonomy--', 'ocdutils' ) ),
+						),
+						array(
+							'id' => 'projects_tax_cats_label',
+							'label' => __( 'Project "Categories" Label', 'ocdutils' ),
+							'type' => 'text',
+							'description' => __( 'The heading text used for the badges in the modal window. e.g. "Project Type"', 'ocdutils' ),
+							'required' => true,
+							'default' => __( 'Project Categories', 'ocdutils' ),
+						),
+						array(
+							'id' => 'projects_tax_tags',
+							'label' => __( 'Project "Tags" Taxonomy', 'ocdutils' ),
+							'type' => 'select',
+							'description' => __( 'Choose an additional taxonomy from your "Post Type" that will be used to display extra info "badges" (not used for filtering).', 'ocdutils' ),
+							'options' => array( '' => __( '--Select your "Tags" Taxonomy--', 'ocdutils' ) ),
+						),
+						array(
+							'id' => 'projects_tax_tags_label',
+							'label' => __( 'Project "Tags" Label', 'ocdutils' ),
+							'type' => 'text',
+							'description' => __( 'The heading text used for the badges in the modal window. e.g. "Project Features"', 'ocdutils' ),
+							'required' => true,
+							'default' => __( 'Project Tags', 'ocdutils' ),
 						),
 					),
 				),
 				array(
-					'id' => 'usage',
-					'label' => __( 'Portfolio Shortcode Instructions', 'ocdutils' ),
-					'description' => $this->usage_instructions(),
+					'id' => 'design',
+					'label' => __( 'Portfolio Design Settings', 'ocdutils' ),
+					'fields' => array(
+						array(
+							'id' => 'color_primary',
+							'label' => __( 'Primary Accent Color', 'ocdutils' ),
+							'description' => __( 'A dark color that will look good as text on a light background, and also look good as a background with light text on it.', 'ocdutils' ),
+							'type' => 'color',
+							'default' => '#2c3e50',
+						),
+						array(
+							'id' => 'color_secondary',
+							'label' => __( 'Secondary Accent Color', 'ocdutils' ),
+							'description' => __( 'A bright color that will look good as text on a background of the primary color above, and also look good as a background with the primary color text on it.', 'ocdutils' ),
+							'type' => 'color',
+							'default' => '#bccedd',
+						),
+						array(
+							'id' => 'color_text_light',
+							'label' => __( 'Light Text Color', 'ocdutils' ),
+							'description' => __( 'A light or white color that will look good as text on a background of the primary color above.', 'ocdutils' ),
+							'type' => 'color',
+							'default' => '#d1dce5',
+						),
+						array(
+							'id' => 'color_text_dark',
+							'label' => __( 'Dark Text Color', 'ocdutils' ),
+							'description' => __( 'A dark or black color that will look good as text on a background of the secondary color above.', 'ocdutils' ),
+							'type' => 'color',
+							'default' => '#4a5866',
+						),
+					),
 				),
 				// Additional sections can be defined here.
 			),
@@ -486,8 +643,6 @@ class OCD_FilterPortfolio {
 
 	/**
 	 * Generates admin notices.
-	 *
-	 * @return string HTML for the admin notices.
 	 */
 	public function admin_notices() {
 		if ( current_user_can( 'manage_options' ) ) {
@@ -496,12 +651,118 @@ class OCD_FilterPortfolio {
 
 			if ( empty( $options['portfolio_page_id'] ) ) {
 				echo '<div class="notice notice-error"><p>';
-					echo esc_html( __( 'In order for the "Filterable Portfolio with Modals" links to work correctly, you must choose a page.', 'ocdutils' ) );
-					echo ' <a href="'. OCD_UTILS_SETTINGS_PAGE_LINK .'&tab='. $this->slug .'">'. esc_html( __( 'Go to Settings', 'ocdutils' ) ) .'</a>';
+					echo esc_html__( 'In order for the "Filterable Portfolio with Modals" links to work correctly, you must choose a page.', 'ocdutils' );
+					echo ' <a href="'. OCD_UTILS_SETTINGS_PAGE_LINK .'&tab='. $this->slug .'">'. esc_html__( 'Go to Settings', 'ocdutils' ) .'</a>';
+				echo '</p></div>';
+			}
+
+			if ( empty( $options['projects_post_type'] ) ) {
+				echo '<div class="notice notice-error"><p>';
+					echo esc_html__( 'In order for the "Filterable Portfolio with Modals" shortcode to work, you must choose a post type.', 'ocdutils' );
+					echo ' <a href="'. OCD_UTILS_SETTINGS_PAGE_LINK .'&tab='. $this->slug .'">'. esc_html__( 'Go to Settings', 'ocdutils' ) .'</a>';
 				echo '</p></div>';
 			}
 
 		}
+	}
+
+	/**
+	 * Adds script to swtich the dropdown options for the taxonomies based on which post type is chosen.
+	 */
+	public function taxonomies_select_switcher() {
+		$options = ocd_get_options( $this );
+
+		wp_enqueue_script( 'jquery' );
+
+		ob_start();
+		?>
+		<script>
+		jQuery(function($){
+			$(document).ready(function(){
+				const postTypeVal = '<?php echo $options['projects_post_type'] ?: ''; ?>';
+				const taxonomies = <?php echo json_encode( $this->post_type_taxonomies ); ?>;
+				const $taxCatsSelectEl = $('#projects_tax_cats');
+				const taxCatsVal = '<?php echo $options['projects_tax_cats'] ?: ''; ?>';
+				const $taxTagsSelectEl = $('#projects_tax_tags');
+				const taxTagsVal = '<?php echo $options['projects_tax_tags'] ?: ''; ?>';
+				const $projectsPostTypeSelectEl = $('#projects_post_type');
+				let selectedKey = $projectsPostTypeSelectEl.val();
+
+				if(selectedKey === '' || selectedKey === null || selectedKey === undefined){
+					$projectsPostTypeSelectEl.find('option').each(function(){
+						let optionValue = $(this).val();
+						if(optionValue.toLowerCase().indexOf('project') !== -1 && 'ocd-project' !== optionValue){
+							selectedKey = optionValue;
+							$projectsPostTypeSelectEl.val(selectedKey);
+							return false;
+						}
+					});
+
+					if(selectedKey === '' || selectedKey === null || selectedKey === undefined){
+						selectedKey = 'ocd-project';
+						$projectsPostTypeSelectEl.val(selectedKey);
+					}
+				}
+
+				let selectedOptions = taxonomies[selectedKey];
+
+				$taxCatsSelectEl.find('option:not(:first)').remove();
+				$taxTagsSelectEl.find('option:not(:first)').remove();
+				$.each(selectedOptions, function(value, text){
+					$taxCatsSelectEl.append($('<option></option>').attr('value', value).text(text));
+					if(taxCatsVal === '' || taxCatsVal === null || taxCatsVal === undefined){
+						if(value.toLowerCase().indexOf('cat') !== -1){
+							$taxCatsSelectEl.val(value);
+						}
+					}else if(taxCatsVal === value){
+						$taxCatsSelectEl.val(value);
+					}
+
+					$taxTagsSelectEl.append($('<option></option>').attr('value', value).text(text));
+					if(taxTagsVal === '' || taxTagsVal === null || taxTagsVal === undefined){
+						if(value.toLowerCase().indexOf('tag') !== -1){
+							$taxTagsSelectEl.val(value);
+						}
+					}else if(taxTagsVal === value){
+						$taxTagsSelectEl.val(value);
+					}
+				});
+
+				$projectsPostTypeSelectEl.on('change', function(){
+					let selectedKey = $projectsPostTypeSelectEl.val();
+					let selectedOptions = taxonomies[selectedKey];
+
+					$taxCatsSelectEl.find('option:not(:first)').remove();
+					$taxTagsSelectEl.find('option:not(:first)').remove();
+					$.each(selectedOptions, function(value, text){
+						$taxCatsSelectEl.append($('<option></option>').attr('value', value).text(text));
+						if(selectedKey !== postTypeVal || taxCatsVal === '' || taxCatsVal === null || taxCatsVal === undefined){
+							if(value.toLowerCase().indexOf('cat') !== -1){
+								$taxCatsSelectEl.val(value);
+							}
+						}else if(taxCatsVal === value){
+							$taxCatsSelectEl.val(value);
+						}
+
+						$taxTagsSelectEl.append($('<option></option>').attr('value', value).text(text));
+						if(selectedKey !== postTypeVal || taxTagsVal === '' || taxTagsVal === null || taxTagsVal === undefined){
+							if(value.toLowerCase().indexOf('tag') !== -1){
+								$taxTagsSelectEl.val(value);
+							}
+						}else if(taxTagsVal === value){
+							$taxTagsSelectEl.val(value);
+						}
+					});
+				});
+			});
+		});
+		</script>
+		<?php
+		$script = str_replace( array( '<script>', '</script>' ), '', ob_get_clean() );
+
+		wp_add_inline_script( 'jquery', $script );
+
+		return;
 	}
 
 	/**
@@ -512,13 +773,39 @@ class OCD_FilterPortfolio {
 
 		add_meta_box(
 			'ocd_filter_portfolio_project_url_meta_box', // Unique ID for the meta box
-			esc_html( __( 'Project URL', 'ocdutils' ) ), // Meta box title
+			esc_html__( 'Project URL', 'ocdutils' ),     // Meta box title
 			array( $this, 'render_url_meta_box' ),       // Callback function to render the meta box
 			$options['projects_post_type'],              // Post type where the meta box should appear
 			'normal',                                    // Context (where the box should be placed: normal, side, etc.)
 			'high'                                       // Priority (high, low, default)
 	  );
-	}
+
+
+		// Check if Yoast SEO is active
+		if ( defined( 'WPSEO_VERSION' ) ) {
+			global $wp_meta_boxes;
+
+			// Check if the Yoast SEO meta box is registered
+			if ( isset( $wp_meta_boxes[$options['projects_post_type']]['normal']['high']['wpseo_meta'] ) ) {
+				// Get the Yoast SEO meta box details
+				$yoast_meta_box = $wp_meta_boxes[$options['projects_post_type']]['normal']['high']['wpseo_meta'];
+
+				// Remove the original Yoast SEO meta box
+				remove_meta_box( 'wpseo_meta', $options['projects_post_type'], 'normal' );
+
+				// Re-add the Yoast SEO meta box using the retrieved details and setting 'default' priority
+				add_meta_box(
+					'wpseo_meta',                   // Meta box ID
+					$yoast_meta_box['title'],       // Title of the meta box
+					$yoast_meta_box['callback'],    // Callback function
+					$options['projects_post_type'], // Post type
+					'normal',                       // Context (normal area)
+					'default',                      // Priority
+					$yoast_meta_box['args']         // Arguments
+				);
+			}
+		}
+  }
 
 	/**
 	 * Echoes out the meta box HTML.
@@ -569,6 +856,153 @@ class OCD_FilterPortfolio {
 			$project_url = sanitize_text_field( $_POST['ocd_filter_portfolio_project_url'] );
 			update_post_meta( $post_id, '_ocd_filter_portfolio_project_url', $project_url );
 	  }
+	}
+
+	/**
+	 * Adds a notice on the project edit screen to.
+	 * 
+	 * @param object $post WP_Post object.
+	 */
+	public function project_content_instructions( $post ) {
+		$options = ocd_get_options( $this );
+		$screen = get_current_screen();
+		if ( $screen->post_type !== $options['projects_post_type'] ) return;
+
+		echo '<div class="ocd-project-content-instructions notice-info" style="margin-top: 20px; margin-bottom: 0;">';
+			echo '<p>';
+				echo '<strong>'. esc_html__( 'Instructions:', 'ocdutils' ) .'</strong> ';
+				echo esc_html__( 'Please be sure to use only Heading Levels 4, 5, and 6. Do not use Heading 1, Heading 2, or Heading 3.', 'ocdutils' );
+			echo '</p>';
+		echo '</div>';
+
+		ob_start();
+		?>
+		<script>
+			window.addEventListener('load', function(){
+				let ocdCustomNotice = document.querySelector('.ocd-project-content-instructions');
+				if(ocdCustomNotice){
+					ocdCustomNotice.classList.add('notice');
+				}
+			});
+		</script>
+		<?php
+		echo ob_get_clean();
+	}
+
+	/**
+	 * Registers post types.
+	 */
+	private function register_post_types() {
+		register_post_type( 'ocd-project', array(
+			'labels' => array(
+				'name'                     => esc_html__( 'Projects',                     'ocdutils' ),
+				'singular_name'            => esc_html__( 'Project',                      'ocdutils' ),
+				'menu_name'                => esc_html__( 'OCD Projects',                 'ocdutils' ),
+				'all_items'                => esc_html__( 'All Projects',                 'ocdutils' ),
+				'edit_item'                => esc_html__( 'Edit Project',                 'ocdutils' ),
+				'view_item'                => esc_html__( 'View Project',                 'ocdutils' ),
+				'view_items'               => esc_html__( 'View Projects',                'ocdutils' ),
+				'add_new_item'             => esc_html__( 'Add New Project',              'ocdutils' ),
+				'add_new'                  => esc_html__( 'Add New',                      'ocdutils' ),
+				'new_item'                 => esc_html__( 'New Project',                  'ocdutils' ),
+				'parent_item_colon'        => esc_html__( 'Parent Project:',              'ocdutils' ),
+				'search_items'             => esc_html__( 'Search Projects',              'ocdutils' ),
+				'not_found'                => esc_html__( 'No projects found',            'ocdutils' ),
+				'not_found_in_trash'       => esc_html__( 'No projects found in Trash',   'ocdutils' ),
+				'archives'                 => esc_html__( 'Project Archives',             'ocdutils' ),
+				'attributes'               => esc_html__( 'Project Attributes',           'ocdutils' ),
+				'insert_into_item'         => esc_html__( 'Insert into project',          'ocdutils' ),
+				'uploaded_to_this_item'    => esc_html__( 'Uploaded to this project',     'ocdutils' ),
+				'filter_items_list'        => esc_html__( 'Filter projects list',         'ocdutils' ),
+				'filter_by_date'           => esc_html__( 'Filter projects by date',      'ocdutils' ),
+				'items_list_navigation'    => esc_html__( 'Projects list navigation',     'ocdutils' ),
+				'items_list'               => esc_html__( 'Projects list',                'ocdutils' ),
+				'item_published'           => esc_html__( 'Project published.',           'ocdutils' ),
+				'item_published_privately' => esc_html__( 'Project published privately.', 'ocdutils' ),
+				'item_reverted_to_draft'   => esc_html__( 'Project reverted to draft.',   'ocdutils' ),
+				'item_scheduled'           => esc_html__( 'Project scheduled.',           'ocdutils' ),
+				'item_updated'             => esc_html__( 'Project updated.',             'ocdutils' ),
+				'item_link'                => esc_html__( 'Project Link',                 'ocdutils' ),
+				'item_link_description'    => esc_html__( 'A link to a project.',         'ocdutils' ),
+			),
+			'public'            => true,
+			'has_archive'       => true,
+			'show_in_rest'      => true,
+			'delete_with_user'  => false,
+			'menu_icon'         => 'dashicons-media-document',
+			'supports'          => array( 'title', 'editor', 'excerpt', 'thumbnail', 'revisions', 'author', 'slug', 'comments', 'trackbacks', 'custom-fields' ),
+			'taxonomies'        => array( 'ocd-project-category', 'ocd-project-tag' ),
+		) );
+
+		register_taxonomy( 'ocd-project-category', array( 'ocd-project' ), array(
+			'labels' => array(
+				'name'                  => esc_html__( 'Project Categories',         'ocdutils' ),
+				'singular_name'         => esc_html__( 'Category',                   'ocdutils' ),
+				'menu_name'             => esc_html__( 'Categories',                 'ocdutils' ),
+				'all_items'             => esc_html__( 'All Categories',             'ocdutils' ),
+				'edit_item'             => esc_html__( 'Edit Category',              'ocdutils' ),
+				'view_item'             => esc_html__( 'View Category',              'ocdutils' ),
+				'update_item'           => esc_html__( 'Update Category',            'ocdutils' ),
+				'add_new_item'          => esc_html__( 'Add New Category',           'ocdutils' ),
+				'new_item_name'         => esc_html__( 'New Category Name',          'ocdutils' ),
+				'parent_item'           => esc_html__( 'Parent Category',            'ocdutils' ),
+				'parent_item_colon'     => esc_html__( 'Parent Category:',           'ocdutils' ),
+				'search_items'          => esc_html__( 'Search Categories',          'ocdutils' ),
+				'not_found'             => esc_html__( 'No categories found',        'ocdutils' ),
+				'no_terms'              => esc_html__( 'No categories',              'ocdutils' ),
+				'filter_by_item'        => esc_html__( 'Filter by category',         'ocdutils' ),
+				'items_list_navigation' => esc_html__( 'Categories list navigation', 'ocdutils' ),
+				'items_list'            => esc_html__( 'Categories list',            'ocdutils' ),
+				'back_to_items'         => esc_html__( '← Go to categories',         'ocdutils' ),
+				'item_link'             => esc_html__( 'Category Link',              'ocdutils' ),
+				'item_link_description' => esc_html__( 'A link to a category',       'ocdutils' ),
+			),
+			'rewrite' => array( 
+				'with_front'   => true,
+				'hierarchical' => false,
+			 ),
+			'public'            => true,
+			'hierarchical'      => true,
+			'show_in_menu'      => true,
+			'show_in_rest'      => true,
+			'show_admin_column' => true,
+		) );
+
+		register_taxonomy( 'ocd-project-tag', array( 'ocd-project' ), array(
+			'labels' => array(
+				'name'                       => esc_html__( 'Project Tags',                   'ocdutils' ),
+				'singular_name'              => esc_html__( 'Tag',                            'ocdutils' ),
+				'menu_name'                  => esc_html__( 'Tags',                           'ocdutils' ),
+				'all_items'                  => esc_html__( 'All Tags',                       'ocdutils' ),
+				'edit_item'                  => esc_html__( 'Edit Tag',                       'ocdutils' ),
+				'view_item'                  => esc_html__( 'View Tag',                       'ocdutils' ),
+				'update_item'                => esc_html__( 'Update Tag',                     'ocdutils' ),
+				'add_new_item'               => esc_html__( 'Add New Tag',                    'ocdutils' ),
+				'new_item_name'              => esc_html__( 'New Tag Name',                   'ocdutils' ),
+				'search_items'               => esc_html__( 'Search Tags',                    'ocdutils' ),
+				'popular_items'              => esc_html__( 'Popular Tags',                   'ocdutils' ),
+				'separate_items_with_commas' => esc_html__( 'Separate tags with commas',      'ocdutils' ),
+				'add_or_remove_items'        => esc_html__( 'Add or remove tags',             'ocdutils' ),
+				'choose_from_most_used'      => esc_html__( 'Choose from the most used tags', 'ocdutils' ),
+				'not_found'                  => esc_html__( 'No tags found',                  'ocdutils' ),
+				'no_terms'                   => esc_html__( 'No tags',                        'ocdutils' ),
+				'items_list_navigation'      => esc_html__( 'Tags list navigation',           'ocdutils' ),
+				'items_list'                 => esc_html__( 'Tags list',                      'ocdutils' ),
+				'back_to_items'              => esc_html__( '← Go to tags',                   'ocdutils' ),
+				'item_link'                  => esc_html__( 'Tag Link',                       'ocdutils' ),
+				'item_link_description'      => esc_html__( 'A link to a tag',                'ocdutils' ),
+			),
+			'rewrite' => array( 
+				'with_front'   => true,
+				'hierarchical' => false,
+			 ),
+			'public'            => true,
+			'show_in_menu'      => true,
+			'show_in_rest'      => true,
+			'show_admin_column' => true,
+		) );
+				
+		return;
 	}
 }
 endif;
