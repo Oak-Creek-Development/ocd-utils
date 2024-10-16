@@ -88,11 +88,11 @@ jQuery(function ($) {
         let windowHeight = $(window).height();
         if (
           $instance.offset().top + $instance.outerHeight() <
-            scrollTop + windowHeight / 4 ||
+            scrollTop + windowHeight / 3 ||
           scrollTop + windowHeight >= $(document).height()
         ) {
           $("html, body").animate(
-            { scrollTop: $instance.offset().top - 20 },
+            { scrollTop: $instance.offset().top - 50 },
             500
           );
         }
@@ -139,7 +139,7 @@ jQuery(function ($) {
       $instance.find(".ocdfp-spinner").hide();
       $instance
         .find(".ocdfp-filters, .ocdfp-items")
-        .css({ opacity: "1", "max-height": "none" });
+        .css({ "max-height": "none", opacity: "1", overflow: "visible" });
       $instance
         .find('.ocdfp-filters [data-ocdfp-filter="*"]')
         .addClass("is-checked");

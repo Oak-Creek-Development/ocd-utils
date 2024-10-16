@@ -466,7 +466,9 @@ class OCD_FilterPortfolio {
 		ob_start();
 		?>
 		<div>
-			<h4><?php _e( 'Attributes', 'ocdutils' ); ?></h4>
+			<h4><?php _e( 'Recommendations', 'ocdutils' ); ?></h4>
+			<p><?php _e( 'It is highly recommended to use a "lazy-load" feature. The free plugin "Smush" is very good. (There are also many other alternatives which work great in conjunction with this plugin.)', 'ocdutils' ); ?></p>
+			<h4><?php _e( 'Shortcode Attributes', 'ocdutils' ); ?></h4>
 			<ul>
 				<li><strong>limit</strong>: 
 					<?php _e( 'Number of items to show in the grid.', 'ocdutils' ); ?> <?php _e( 'Default is', 'ocdutils' ) ?> <code>-1</code> (<?php _e( 'Show all', 'ocdutils' ) ?>)
@@ -479,9 +481,9 @@ class OCD_FilterPortfolio {
 					<?php _e( 'Default is', 'ocdutils' ) ?> <code>""</code> (<?php _e( 'Show all', 'ocdutils' ) ?>)
 				</li>
 			</ul>
-			<h4><?php _e( 'Examples', 'ocdutils' ); ?></h4>
+			<h4><?php _e( 'Shortcode Examples', 'ocdutils' ); ?></h4>
 			<p><code>[ocd_filter_portfolio]</code> <?php _e( 'All default settings. Use this on your main portfolio page.', 'ocdutils' ) ?></p>
-			<p><code>[ocd_filter_portfolio limit="6" show_filters="false" category_slugs="category-abc, category-lmno, category-xyz"]</code> <?php _e( 'Use something like this on other pages.', 'ocdutils' ) ?></p>
+			<p><code>[ocd_filter_portfolio limit="6" show_filters="false" category_slugs="cat-abc, my-term-lmno, category-xyz"]</code> <?php _e( 'Use something like this on other pages.', 'ocdutils' ) ?></p>
 			<p><code>[ocd_filter_portfolio limit="21" show_filters="true"]</code></p>
 			<p><?php _e( 'Use all attributes, or none, or mix-and-match. Any attributes omitted from the shortcode will use the default value.', 'ocdutils' ); ?></p>
 		</div>
@@ -547,7 +549,7 @@ class OCD_FilterPortfolio {
 			'sections' => array(
 				array(
 					'id' => 'usage',
-					'label' => __( 'Portfolio Shortcode Instructions', 'ocdutils' ),
+					'label' => __( 'Usage Instructions', 'ocdutils' ),
 					'description' => $this->usage_instructions(),
 				),
 				array(
@@ -609,7 +611,7 @@ class OCD_FilterPortfolio {
 						// 	'options' => array(
 						// 		'true' => __( 'Lazy-Load Images', 'ocdutils' ),
 						// 	),
-						// ),   // TODO: implement image lazy loading
+						// ),   // TODO: implement image lazy loading    ///  nvm .. added recommendation to just use Smush (or alternative) for lazy-loading
 					),
 				),
 				array(
