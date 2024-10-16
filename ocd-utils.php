@@ -156,7 +156,6 @@ class OCD_Utils {
 						'ocd-upcoming-events-carousel' => 'Upcoming Events Carousel', 
 						'ocd-filter-portfolio' => 'Filterable Portfolio with Modals', 
 					), 
-					
 				), 
 			), 
 		) );
@@ -225,6 +224,10 @@ class OCD_Utils {
 							if ( isset( $section['fields'] ) && is_array( $section['fields'] ) ) {
 								foreach ( $section['fields'] as $field ) {
 									if ( isset( $field['default'], $field['id'] ) ) {
+										if ( 'checkboxes' == $field['type'] ) {
+											$field['default'] = (array) $field['default'];
+										}
+
 										$component_defaults[$field['id']] = $field['default'];
 									}
 								}

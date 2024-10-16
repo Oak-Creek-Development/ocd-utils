@@ -533,27 +533,4 @@
 .ocdfp-modal .modal-overlay {
    will-change: transform;
 }
-
-
-
-
-
-/* .ocdfp-modal .modal-container {
-   max-height: none;
-   overflow-y: visible;
-   width: 100%;
-   height: 100%;
-   display: flex;
-   justify-content: center;
-   align-items: center;
-}
-
-.ocdfp-modal .modal-content {
-   max-height: none;
-   overflow: visible;
-} */
-
-/*.ocdfp-modal .modal-container {
-   max-height: none;
-}*/
 /********************************** END MODALS ***************************************/

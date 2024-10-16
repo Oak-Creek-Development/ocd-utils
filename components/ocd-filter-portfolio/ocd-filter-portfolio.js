@@ -137,7 +137,9 @@ jQuery(function ($) {
       });
 
       $instance.find(".ocdfp-spinner").hide();
-      $instance.find(".ocdfp-filters, .ocdfp-items").css({ opacity: "1" });
+      $instance
+        .find(".ocdfp-filters, .ocdfp-items")
+        .css({ opacity: "1", "max-height": "none" });
       $instance
         .find('.ocdfp-filters [data-ocdfp-filter="*"]')
         .addClass("is-checked");

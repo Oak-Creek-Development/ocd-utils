@@ -197,15 +197,15 @@ class OCD_FilterPortfolio {
 			$meta = wp_get_attachment_metadata( $post_thumbnail_id );
 
 			if ( isset( $meta['sizes']['ocd-filter-portfolio-thumb'] ) ) {
-				$project_image_thumb = get_the_post_thumbnail( $project->ID, 'ocd-filter-portfolio-thumb' );
+				$project_image_thumb = get_the_post_thumbnail( $project->ID, 'ocd-filter-portfolio-thumb', array( 'style' => 'width: 768px;' ) );
 			} else {
-				$project_image_thumb = get_the_post_thumbnail( $project->ID, 'thumbnail' );
+				$project_image_thumb = get_the_post_thumbnail( $project->ID, 'thumbnail', array( 'style' => 'width: 768px;' ) );
 			}
 
 			if ( isset( $meta['sizes']['ocd-filter-portfolio-full'] ) ) {
-				$project_image_full = get_the_post_thumbnail( $project->ID, 'ocd-filter-portfolio-full' );
+				$project_image_full = get_the_post_thumbnail( $project->ID, 'ocd-filter-portfolio-full', array( 'style' => 'width: 1024px;' ) );
 			} else {
-				$project_image_full = get_the_post_thumbnail( $project->ID, 'full' );
+				$project_image_full = get_the_post_thumbnail( $project->ID, 'full', array( 'style' => 'width: 1024px;' ) );
 			}
 
 			$item_id = $project->post_name .'-'. $shortcode_i;
@@ -242,10 +242,10 @@ class OCD_FilterPortfolio {
 											$items .= '<ul class="ocdfp-tags">'. $project_tags_badges .'</ul>';
 										}
 
-										$project_main_description = get_the_content( null, false, $project );
-										if ( ! empty( $project_main_description ) ) {
+										$project_description = get_the_content( null, false, $project );
+										if ( ! empty( $project_description ) ) {
 											$items .= '<h3 class="ocdfp-detail-section">'. esc_html__( 'Project Description', 'ocdutils' ) .'</h3>';
-											$items .= wpautop( $project_main_description );
+											$items .= wpautop( $project_description );
 										}
 
 									$items .= '</div>';
@@ -283,7 +283,7 @@ class OCD_FilterPortfolio {
 				return $b['count'] <=> $a['count'];
 			} );
 
-			$filters .= '<ul class="ocdfp-filters" style="opacity: 0;">';
+			$filters .= '<ul class="ocdfp-filters" style="max-height: 20px; overflow: hidden; opacity: 0;">';
 				$filters .= '<li><button data-ocdfp-filter="*">Show All <span>'. $projects_count .'</span></button></li>';
 				foreach ( $cats as $category ) {
 					if ( 2 > $category['count'] ) continue;
@@ -321,7 +321,7 @@ class OCD_FilterPortfolio {
 			$html .= $style_vars;
 			$html .= $this->loading_spinner();
 			$html .= $filters;
-			$html .= '<div class="ocdfp-items" style="opacity: 0;">';
+			$html .= '<div class="ocdfp-items" style="max-height: 20px; overflow: hidden; opacity: 0;">';
 				$html .= '<div class="ocdfp-item-sizer"></div>';
 				$html .= $items;
 			$html .= '</div>';
@@ -385,7 +385,7 @@ class OCD_FilterPortfolio {
 	private function enqueue_scripts() {
 		wp_enqueue_style( 
 			$this->slug, 
-			OCD_UTILS_URL .'components/'. $this->slug .'/'. $this->slug .'.css', 
+			OCD_UTILS_URL .'components/'. $this->slug .'/'. $this->slug .'.min.css', 
 			array(), 
 			$this->version, 
 			'all' 
@@ -407,7 +407,7 @@ class OCD_FilterPortfolio {
 
 		wp_enqueue_script( 
 			$this->slug, 
-			OCD_UTILS_URL .'components/'. $this->slug .'/'. $this->slug .'.js', 
+			OCD_UTILS_URL .'components/'. $this->slug .'/'. $this->slug .'.min.js', 
 			array( 'jquery', 'imagesloaded', 'isotope-layout' ), 
 			$this->version, 
 			$script_args 
@@ -541,7 +541,7 @@ class OCD_FilterPortfolio {
 			);
 		}
 
-		return array(
+		$config_r = array(
 			'slug' => $this->slug,
 			'label' => __( 'Filter Portfolio', 'ocdutils' ), // Tab name in the settings page.
 			'sections' => array(
@@ -600,6 +600,16 @@ class OCD_FilterPortfolio {
 							'required' => true,
 							'default' => __( 'Project Tags', 'ocdutils' ),
 						),
+						// array(
+						// 	'id' => 'lazy_load',
+						// 	'label' => __( 'Lazy-Load Images', 'ocdutils' ),
+						// 	'type' => 'checkboxes',
+						// 	'description' => __( 'Uncheck this if the built-in lazy-loading interferes with your other lazy-load plugin on your site, such as "Smush".', 'ocdutils' ),
+						// 	'default' => 'true',
+						// 	'options' => array(
+						// 		'true' => __( 'Lazy-Load Images', 'ocdutils' ),
+						// 	),
+						// ),   // TODO: implement image lazy loading
 					),
 				),
 				array(
@@ -639,6 +649,8 @@ class OCD_FilterPortfolio {
 				// Additional sections can be defined here.
 			),
 		);
+
+		return $config_r;
 	}
 
 	/**
