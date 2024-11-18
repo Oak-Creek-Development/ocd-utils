@@ -873,7 +873,7 @@ class OCD_FilterPortfolio {
 	}
 
 	/**
-	 * Adds a notice on the project edit screen to.
+	 * Adds notices on the project edit screen.
 	 * 
 	 * @param object $post WP_Post object.
 	 */
@@ -893,9 +893,18 @@ class OCD_FilterPortfolio {
 		?>
 		<script>
 			window.addEventListener('load', function(){
-				let ocdCustomNotice = document.querySelector('.ocd-project-content-instructions');
+				const ocdCustomNotice = document.querySelector('.ocd-project-content-instructions');
 				if(ocdCustomNotice){
 					ocdCustomNotice.classList.add('notice');
+				}
+
+				const featuredImageBox = document.getElementById('postimagediv');
+				if(featuredImageBox){
+					const ocdFeaturedImageInstructions = document.createElement('p');
+					ocdFeaturedImageInstructions.textContent = '<?php echo esc_html__( 'Note: Please make sure the image width is at least 1024 pixels.', 'ocdutils' ); ?>';
+					ocdFeaturedImageInstructions.style.marginTop = '10px';
+
+					featuredImageBox.querySelector('.inside').appendChild(ocdFeaturedImageInstructions);
 				}
 			});
 		</script>
