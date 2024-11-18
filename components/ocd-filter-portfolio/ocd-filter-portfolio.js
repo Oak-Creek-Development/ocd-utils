@@ -144,6 +144,20 @@ jQuery(function ($) {
         .find('.ocdfp-filters [data-ocdfp-filter="*"]')
         .addClass("is-checked");
       isotopeClick();
+
+      // Intersection Observer to trigger Isotope layout on view
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              $items.isotope("layout");
+            }
+          });
+        },
+        { threshold: 0.1 }
+      );
+
+      observer.observe($items[0]); // Observe the items container
     });
 
     $("body").on(
