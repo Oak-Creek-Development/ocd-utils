@@ -1,5 +1,5 @@
 <?php
-add_filter( 'post_row_actions', 'ocd_modify_list_row_actions', 10, 2 );
+// add_filter( 'post_row_actions', 'ocd_modify_list_row_actions', 10, 2 );
 add_filter( 'page_row_actions', 'ocd_modify_list_row_actions', 10, 2 );
 if ( ! function_exists( 'ocd_modify_list_row_actions' ) ) :
 function ocd_modify_list_row_actions( $actions, $post ) {
@@ -16,6 +16,10 @@ function ocd_modify_list_row_actions( $actions, $post ) {
    $actions['view'] = '<a href="' . get_permalink() . '" target="_blank">/' . implode( '/', $short_uri ) . '/</a>';
 
    if ( 'on' == get_post_meta( $post->ID, '_et_pb_use_builder', true ) ) {
+
+      $current_theme = wp_get_theme();
+      $current_theme = $current_theme->parent() ? $current_theme->parent() : $current_theme;
+      if ( 'Divi' !== trim( $current_theme->get( 'Name' ) ) ) return $actions;
 
       $link = add_query_arg( array(
          'et_fb'     => '1',
