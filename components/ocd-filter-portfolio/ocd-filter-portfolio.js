@@ -179,6 +179,7 @@ jQuery(function ($) {
       //disableFocus: true,
       onShow: function (modal) {
         window.ocdHtmlDocStyleAttrStr = $("html").attr("style") || "";
+
         $("html").css({
           "margin-right": getWindowScrollBarWidth() + "px",
           overflow: "hidden",
@@ -225,6 +226,11 @@ jQuery(function ($) {
             $modalEl.toggleClass("img-expanded");
           }
         });
+
+        if ("" === $.trim($detailInner.html())) {
+          $imgInner.parent().addClass("no-description");
+          $imgInner.children("img").first().click();
+        }
       },
       onClose: function (modal) {
         $("html").attr("style", window.ocdHtmlDocStyleAttrStr);

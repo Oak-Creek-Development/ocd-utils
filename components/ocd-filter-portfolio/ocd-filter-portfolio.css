@@ -130,9 +130,11 @@
    display: block;
    margin: 0 0 0 0;
    padding: 0 0 0 0;
-   width: 100%;
+   width: 100% !important;
    transform: scale(1.01);
    transition: transform 250ms;
+   object-fit: cover !important;
+   object-position: top !important;
 }
 
 .ocdfp-wrapper .ocdfp-items > .ocdfp-item:hover > .ocdfp-item-image img {
@@ -409,6 +411,10 @@
    .ocdfp-modal.img-expanded .modal-content > .ocdfp-image-wrapper {
       max-width: 1024px;
       margin-top: 2em;
+   }
+
+   .ocdfp-modal.img-expanded .modal-content > .ocdfp-image-wrapper.no-description {
+      margin-top: 0;
    }
 
    .ocdfp-modal .modal-content > .ocdfp-image-wrapper img {
