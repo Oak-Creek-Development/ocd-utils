@@ -164,6 +164,20 @@ jQuery(function ($) {
       "click",
       ".ocdfp-wrapper .ocdfp-filters button, .ocdfp-wrapper .ocdfp-categories a, .ocdfp-modal .ocdfp-categories a",
       function (e) {
+        let $target = $(e.target);
+
+        // if we clicked on a child of the element that has the data attribute
+        if (!$target.is("[data-ocdfp-filter]")) {
+          let $closest = $target
+            .parentsUntil(".ocdfp-wrapper")
+            .filter("[data-ocdfp-filter]")
+            .first();
+
+          if ($closest.length) {
+            e = $.extend({}, e, { target: $closest[0] });
+          }
+        }
+
         isotopeClick(e);
       }
     );
