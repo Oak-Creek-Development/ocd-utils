@@ -184,7 +184,11 @@ jQuery(function ($) {
     /***************************** END ISOTOPE *******************************/
 
     /***************************** MODALS *******************************/
-    $(".ocdfp-wrapper .ocdfp-modal").appendTo("body");
+    // $(".ocdfp-wrapper .ocdfp-modal").appendTo("body");
+    // dont do it on page load... wait until click to move modal div to body container... idk if this is better? (may cause problems)
+    $(".ocdfp-wrapper .ocdfp-modal").on("click", function () {
+      $(this).appendTo("body");
+    });
 
     window.ocdHtmlDocStyleAttrStr = "";
 
