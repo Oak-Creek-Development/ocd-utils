@@ -54,6 +54,13 @@
   border-color: var(--ocdfp-color-primary);
 }
 
+@media screen and (max-width: 767px) {
+   .ocdfp-wrapper ul.ocdfp-filters > li > button {
+      font-size: 0.8rem;
+      padding: 0.6rem;
+   }
+}
+
 .ocdfp-wrapper ul.ocdfp-filters > li > button > span {
   color: var(--ocdfp-color-text-light);
   background-color: var(--ocdfp-color-primary);
