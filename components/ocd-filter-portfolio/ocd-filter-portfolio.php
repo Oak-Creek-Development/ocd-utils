@@ -123,12 +123,17 @@ class OCD_FilterPortfolio {
 
 		// Add tax_query for project categories if provided in shortcode
 		if ( ! empty( $category_slugs_r[0] ) && ! empty( $tax_cats ) ) {
-			$query_args['tax_query'] = array( array(
-				'taxonomy' => $tax_cats,
-				'field'    => 'slug',
-				'terms'    => $category_slugs_r,
-			) );
+			$query_args['tax_query'] = array(
+				'ocd_builtin' => array(
+					'taxonomy' => $tax_cats,
+					'field'    => 'slug',
+					'terms'    => $category_slugs_r,
+				),
+			);
 		}
+
+		// Allow filtering of query arguments
+		$query_args = apply_filters( 'ocd_filter_portfolio_query_args', $query_args );
 
 		$projects = get_posts( $query_args );
 
