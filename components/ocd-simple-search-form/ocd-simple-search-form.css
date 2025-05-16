@@ -1,14 +1,20 @@
 body .ocd-simple-search-form {
    box-sizing: border-box;
-   background-color: var( --ocdssf-color-background );
-   border: 1px solid var( --ocdssf-color-border );
-   border-radius: var( --ocdssf-border-radius );
+   background-color: var(--ocdssf-color-background);
+   border: 1px solid var(--ocdssf-color-border);
+   border-radius: var(--ocdssf-border-radius);
    display: flex;
    flex-direction: row;
    flex-wrap: nowrap;
    justify-content: space-between;
-   max-width: var( --ocdssf-max-width );
-   min-width: var( --ocdssf-min-width );
+   max-width: var(--ocdssf-max-width);
+   min-width: var(--ocdssf-min-width);
+   transition: background-color 0.3s ease;
+}
+
+body .ocd-simple-search-form:hover,
+body .ocd-simple-search-form:focus-within {
+   background-color: color-mix(in srgb, var(--ocdssf-color-background) 80%, black);
 }
 
 body .ocd-simple-search-form .sr-only {
@@ -26,30 +32,47 @@ body .ocd-simple-search-form .sr-only {
 body .ocd-simple-search-form input {
    flex: 1 1 auto;
    min-width: 0;
-   font-size: var( --ocdssf-font-size );
-   line-height: var( --ocdssf-font-size );
-   color: var( --ocdssf-color-text );
+   font-size: var(--ocdssf-font-size);
+   line-height: var(--ocdssf-font-size);
+   color: var(--ocdssf-color-text);
    border: none;
    padding: 5px 5px 5px 15px;
    background-color: transparent;
 }
 
+body .ocd-simple-search-form input:-webkit-autofill,
+body .ocd-simple-search-form input:-webkit-autofill:hover,
+body .ocd-simple-search-form input:-webkit-autofill:focus,
+body .ocd-simple-search-form input:-internal-autofill-selected {
+   background-color: transparent !important;
+   color: var(--ocdssf-color-text) !important;
+   -webkit-text-fill-color: var(--ocdssf-color-text) !important;
+   font-size: var(--ocdssf-font-size) !important;
+   line-height: var(--ocdssf-font-size) !important;
+   transition: background-color 5000s ease-in-out 0s;
+}
+
 body .ocd-simple-search-form button {
    border: none;
-   background-color: var( --ocdssf-color-button );
+   background-color: var(--ocdssf-color-button);
    display: flex;
    align-items: center;
    justify-content: center;
-   padding: 0 calc( var( --ocdssf-font-size ) * 0.7 );
-   border-radius: var( --ocdssf-border-radius );
+   padding: 0 calc( var(--ocdssf-font-size) * 0.6 );
+   border-radius: var(--ocdssf-border-radius);
    border-top-left-radius: 0;
    border-bottom-left-radius: 0;
    cursor: pointer;
+   transition: background-color 0.3s ease;
+}
+
+body .ocd-simple-search-form button:hover {
+   background-color: color-mix(in srgb, var(--ocdssf-color-button) 80%, white);
 }
 
 body .ocd-simple-search-form button svg {
-   width: calc( var( --ocdssf-font-size ) + 2px );
-   height: calc( var( --ocdssf-font-size ) + 2px );
-   color: var( --ocdssf-color-icon );
-   fill: var( --ocdssf-color-icon );
+   width: calc( var(--ocdssf-font-size) + 2px );
+   height: calc( var(--ocdssf-font-size) + 2px );
+   color: var(--ocdssf-color-icon);
+   fill: var(--ocdssf-color-icon);
 }
