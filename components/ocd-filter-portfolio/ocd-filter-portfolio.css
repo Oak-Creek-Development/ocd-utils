@@ -15,7 +15,7 @@
   gap: 5px;
   padding: 0 0 0 0 !important;
   margin: 0 0 20px 0 !important;
-  list-style: none !important;
+  list-style: none;
 }
 
 .ocdfp-wrapper ul.ocdfp-filters > li,

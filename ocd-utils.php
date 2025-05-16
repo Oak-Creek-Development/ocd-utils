@@ -153,6 +153,7 @@ class OCD_Utils {
 					//  3. If the component needs to have an Admin settings page tab, add a settings config array in your component file (see ocd-example-component file)
 					'options' => array(
 						//'ocd-example-component' => 'Example Component',  // Uncomment this only to see the example. Don't leave it uncommented in production. // DO NOT REMOVE
+						'ocd-simple-search-form' => 'Simple Search Form', 
 						'ocd-upcoming-events-carousel' => 'Upcoming Events Carousel', 
 						'ocd-filter-portfolio' => 'Filterable Portfolio with Modals', 
 					), 
