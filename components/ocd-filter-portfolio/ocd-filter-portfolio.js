@@ -15,6 +15,16 @@ jQuery(function ($) {
     return 100 - widthWithScroll;
   }
 
+  function isElementTopInViewport($el) {
+    if (!$el.length) return false;
+
+    const elTop = $el.offset().top;
+    const scrollTop = $(window).scrollTop();
+    const windowBottom = scrollTop + $(window).height();
+
+    return elTop >= scrollTop && elTop <= windowBottom;
+  }
+
   function isotopeClick(e = false) {
     let willScrollIntoView = false;
     let currentFilter = "";
@@ -89,9 +99,10 @@ jQuery(function ($) {
         let scrollTop = $(window).scrollTop();
         let windowHeight = $(window).height();
         if (
-          $instance.offset().top + $instance.outerHeight() <
+          !isElementTopInViewport($instance) &&
+          ($instance.offset().top + $instance.outerHeight() <
             scrollTop + windowHeight / 3 ||
-          scrollTop + windowHeight >= $(document).height()
+            scrollTop + windowHeight >= $(document).height())
         ) {
           $("html, body").animate(
             { scrollTop: $instance.offset().top - 50 },
