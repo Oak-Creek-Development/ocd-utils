@@ -16,12 +16,14 @@ jQuery(function ($) {
   }
 
   function isotopeClick(e = false) {
+    let willScrollIntoView = false;
     let currentFilter = "";
     let $el = "";
     let $instance = "";
     let instanceNum = "";
     if (e === false && window.location.hash) {
       currentFilter = window.location.hash.replace(/^#/, "");
+      willScrollIntoView = true;
     } else if (
       e !== false &&
       (e.type.startsWith("pointer") || e.type === "click")
@@ -103,6 +105,21 @@ jQuery(function ($) {
       $modals
         .find('[data-ocdfp-filter="' + currentFilter + '"]')
         .addClass("is-checked");
+    }
+
+    if (
+      willScrollIntoView &&
+      $(".ocdfp-items").find(
+        '.ocdfp-categories a[data-ocdfp-filter="' + currentFilter + '"]'
+      ).length
+    ) {
+      const $wrapperEl = $(".ocdfp-wrapper").first();
+      if ($wrapperEl.length) {
+        $("html, body").animate(
+          { scrollTop: $wrapperEl.offset().top - 50 },
+          500
+        );
+      }
     }
   }
 
