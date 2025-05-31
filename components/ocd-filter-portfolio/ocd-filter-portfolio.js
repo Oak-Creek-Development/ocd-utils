@@ -235,29 +235,42 @@ jQuery(function ($) {
           });
         }
 
-        let $modalContent = $modalEl.find(".modal-container");
+        let $modalContainer = $modalEl.find(".modal-container");
 
         $modalEl.on("click", ".ocdfp-image img", function () {
           if (window.matchMedia("(min-width: 768px)").matches) {
             $modalEl.toggleClass("img-expanded");
           }
 
-          if ($modalContent[0].scrollHeight > $modalContent[0].clientHeight) {
-            $modalContent.on("wheel", function (e) {
-              const delta = e.originalEvent.deltaY;
-              const el = this;
+          setTimeout(() => {
+            if (
+              $modalContainer[0].scrollHeight > $modalContainer[0].clientHeight
+            ) {
+              $modalContainer.on("wheel", function (e) {
+                const delta = e.originalEvent.deltaY;
+                const el = this;
 
-              const atTop = el.scrollTop === 0;
-              const atBottom =
-                el.scrollHeight - el.scrollTop === el.clientHeight;
+                const atTop = el.scrollTop === 0;
+                const atBottom =
+                  el.scrollHeight - el.scrollTop === el.clientHeight;
 
-              if ((delta < 0 && atTop) || (delta > 0 && atBottom)) {
-                return;
-              }
+                if ((delta < 0 && atTop) || (delta > 0 && atBottom)) {
+                  return;
+                }
 
-              e.stopPropagation();
+                e.stopPropagation();
+              });
+            }
+          }, 0);
+
+          const img = this;
+          setTimeout(() => {
+            img.scrollIntoView({
+              behavior: "smooth",
+              block: "start",
+              inline: "nearest",
             });
-          }
+          }, 0);
         });
 
         if ("" === $.trim($detailInner.html())) {
