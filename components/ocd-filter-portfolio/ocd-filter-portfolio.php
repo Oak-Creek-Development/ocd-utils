@@ -85,6 +85,7 @@ class OCD_FilterPortfolio {
 				'limit'        => -1,
 				'show_filters' => 'true',
 				'categories'   => '',
+				'tags'         => '',
 				'projects'     => '',
 			), 
 			array_change_key_case( (array)$atts, CASE_LOWER ), 
@@ -98,14 +99,14 @@ class OCD_FilterPortfolio {
 		$portfolio_page_id = intval( $options['portfolio_page_id'] );
 		$portfolio_page_url = esc_url( get_permalink( $portfolio_page_id ) );
 
-		$tax_cats = $options['projects_tax_cats'] ?: '';
+		$tax_cats = sanitize_title( $options['projects_tax_cats'] ) ?: '';
 		if ( '' === $tax_cats ) {
 			// TODO: If the user didn't specify a taxonomy for "Categories" in the options
 			// maybe i want to loop through the taxonomies for the chosen post type and pick one that contains substr "cat"
 			// or maybe don't do this, its prob not necessary
 		}
 
-		$tax_tags = $options['projects_tax_tags'] ?: '';
+		$tax_tags = sanitize_title( $options['projects_tax_tags'] ) ?: '';
 		if ( '' === $tax_tags ) {
 			// TODO: If the user didn't specify a taxonomy for "Tags" in the options
 			// maybe i want to loop through the taxonomies for the chosen post type and pick one that contains substr "tag"
@@ -123,10 +124,10 @@ class OCD_FilterPortfolio {
 		);
 
 		if ( ! empty( $atts['categories'] ) && ! empty( $tax_cats ) ) {
-			$categories_r = $this->parse_categories_att( $atts['categories'] );
+			$categories_r = $this->term_slugs_ids_str_to_arrays( $atts['categories'] );
 
 			if ( ! empty( $categories_r['term_ids'] ) || ! empty( $categories_r['slugs'] ) ) {
-				$query_args['tax_query'] = array( 'relation' => 'OR' );
+				$query_args['tax_query']['relation'] = 'OR';
 			}
 
 			if ( ! empty( $categories_r['term_ids'] ) ) {
@@ -142,6 +143,30 @@ class OCD_FilterPortfolio {
 					'taxonomy' => $tax_cats,
 					'field'    => 'slug',
 					'terms'    => $categories_r['slugs'],
+				);
+			}
+		}
+
+		if ( ! empty( $atts['tags'] ) && ! empty( $tax_tags ) ) {
+			$tags_r = $this->term_slugs_ids_str_to_arrays( $atts['tags'] );
+
+			if ( ! empty( $tags_r['term_ids'] ) || ! empty( $tags_r['slugs'] ) ) {
+				$query_args['tax_query']['relation'] = 'OR';
+			}
+
+			if ( ! empty( $tags_r['term_ids'] ) ) {
+				$query_args['tax_query'][] = array(
+					'taxonomy' => $tax_tags,
+					'field'    => 'term_id',
+					'terms'    => $tags_r['term_ids'],
+				);
+			}
+
+			if ( ! empty( $tags_r['slugs'] ) ) {
+				$query_args['tax_query'][] = array(
+					'taxonomy' => $tax_tags,
+					'field'    => 'slug',
+					'terms'    => $tags_r['slugs'],
 				);
 			}
 		}
@@ -489,17 +514,20 @@ class OCD_FilterPortfolio {
 	}
 
 	/**
-	 * Helper function to parse the categories shortcode attribute string.
+	 * Helper function to parse a shortcode attribute string.
 	 *
 	 * @return array of parsed values.
 	 */
-	public function parse_categories_att( $str = '' ) {
+	public function term_slugs_ids_str_to_arrays( $str = '' ) {
 		$output_r = array(
 			'term_ids' => array(),
 			'slugs'    => array(),
 		);
 
-		$items = array_map( 'trim', explode( ',', $str ) );
+		$items = array_map(
+			fn( $item ) => strtolower( trim( $item ) ),
+			explode( ',', $str )
+		);
 
 		foreach ( $items as $item ) {
 			if ( ctype_digit( $item ) && (int) $item > 0 ) {
