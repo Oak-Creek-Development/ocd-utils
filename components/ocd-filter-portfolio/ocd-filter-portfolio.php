@@ -82,9 +82,10 @@ class OCD_FilterPortfolio {
 		// Set default shortcode attributes, overriding with any provided.
 		$atts = shortcode_atts( 
 			array(
-				'limit'          => -1,
-				'show_filters'   => 'true',
-				'category_slugs' => '',
+				'limit'        => -1,
+				'show_filters' => 'true',
+				'categories'   => '',
+				'projects'     => '',
 			), 
 			array_change_key_case( (array)$atts, CASE_LOWER ), 
 			$tag 
@@ -93,10 +94,6 @@ class OCD_FilterPortfolio {
 		// Sanitize and process attributes
 		$limit = intval( $atts['limit'] );
 		$show_filters = filter_var( $atts['show_filters'], FILTER_VALIDATE_BOOLEAN );
-
-		$category_slugs_str = trim( sanitize_text_field( $atts['category_slugs'] ) );
-		$category_slugs_str = str_replace( array( ',', '    ', '   ', '  ', '  ' ), ' ', $category_slugs_str );
-		$category_slugs_r = array_map( 'esc_attr', explode( ' ', $category_slugs_str ) );
 
 		$portfolio_page_id = intval( $options['portfolio_page_id'] );
 		$portfolio_page_url = esc_url( get_permalink( $portfolio_page_id ) );
@@ -117,25 +114,97 @@ class OCD_FilterPortfolio {
 
 		// Set up post query
 		$query_args = array(
-			'numberposts' => $limit,
-			'post_type'   => $options['projects_post_type'],
+			'post_type'      => $options['projects_post_type'],
+			'post_status'    => 'publish',
+			'numberposts'    => $limit,
+			'posts_per_page' => $limit,
+			'orderby'        => 'menu_order date',
+			'order'          => 'DESC',
 		);
 
-		// Add tax_query for project categories if provided in shortcode
-		if ( ! empty( $category_slugs_r[0] ) && ! empty( $tax_cats ) ) {
-			$query_args['tax_query'] = array(
-				'ocd_builtin' => array(
+		if ( ! empty( $atts['categories'] ) && ! empty( $tax_cats ) ) {
+			$categories_r = $this->parse_categories_att( $atts['categories'] );
+
+			if ( ! empty( $categories_r['term_ids'] ) || ! empty( $categories_r['slugs'] ) ) {
+				$query_args['tax_query'] = array( 'relation' => 'OR' );
+			}
+
+			if ( ! empty( $categories_r['term_ids'] ) ) {
+				$query_args['tax_query'][] = array(
+					'taxonomy' => $tax_cats,
+					'field'    => 'term_id',
+					'terms'    => $categories_r['term_ids'],
+				);
+			}
+
+			if ( ! empty( $categories_r['slugs'] ) ) {
+				$query_args['tax_query'][] = array(
 					'taxonomy' => $tax_cats,
 					'field'    => 'slug',
-					'terms'    => $category_slugs_r,
-				),
-			);
+					'terms'    => $categories_r['slugs'],
+				);
+			}
 		}
 
 		// Allow filtering of query arguments
 		$query_args = apply_filters( 'ocd_filter_portfolio_query_args', $query_args );
 
 		$projects = get_posts( $query_args );
+
+		if ( ! empty( $atts['projects'] ) ) {
+			$priority_project_ids_r = array_values(
+				array_unique(
+					array_map(
+						'intval',
+						array_filter(
+							array_map( 'trim', explode( ',', $atts['projects'] ) ),
+							static fn( $id ) => ctype_digit( $id ) && (int) $id > 0
+						)
+					)
+				)
+			);
+
+			$priority_projects_query_args = $query_args;
+			$priority_projects_query_args['post__in'] = $priority_project_ids_r;
+
+			$projects = get_posts( $priority_projects_query_args );
+
+
+			/********************************************************************************************************************************************
+			*********************************************************************************************************************************************
+			// This part was going to be used for adding priority projects to other projects already included via cateroy parameter or other params
+			// but I sccrapped it and decided to make it so that if the "projects" param is included, it just shows only those projects, disregarding other params.
+			// If you use this, it's almost done, but it still shows all projects if no other parameters besides "projects" are set,
+			// it needs to be fixed to work correctly when the "projects" param is the only filter set.
+			$existing_project_ids_r = wp_list_pluck( $projects, 'ID' );
+			$priority_project_ids_r = array_values(
+				array_unique(
+					array_map(
+						'intval',
+						array_filter(
+							array_map( 'trim', explode( ',', $atts['projects'] ) ),
+							static fn( $id ) => ctype_digit( $id ) && (int) $id > 0
+						)
+					)
+				)
+			);
+
+			if ( ! empty( $priority_project_ids_r ) ) {
+				$all_project_ids_r = array_unique( array_merge( $priority_project_ids_r, $existing_project_ids_r ) );
+				$all_project_ids_r = array_slice( $all_project_ids_r, 0, $limit );
+
+				// echo '<pre>' . print_r( $all_project_ids_r, true ) . '</pre>';
+				// echo '<pre>' . print_r( $priority_project_ids_r, true ) . '</pre>';
+				// die();
+
+				$priority_projects_query_args = $query_args;
+				$priority_projects_query_args['post__in'] = $all_project_ids_r;
+
+				$projects = get_posts( $priority_projects_query_args );
+			}
+			*******************************************************************************************************************************************
+			******************************************************************************************************************************************/
+		}
 
 		if ( empty( $projects ) ) {
 			return '<p>'. esc_html__( 'No Projects Found.', 'ocdutils' ) .'</p>';
@@ -419,6 +488,30 @@ class OCD_FilterPortfolio {
 		);
 	}
 
+	/**
+	 * Helper function to parse the categories shortcode attribute string.
+	 *
+	 * @return array of parsed values.
+	 */
+	public function parse_categories_att( $str = '' ) {
+		$output_r = array(
+			'term_ids' => array(),
+			'slugs'    => array(),
+		);
+
+		$items = array_map( 'trim', explode( ',', $str ) );
+
+		foreach ( $items as $item ) {
+			if ( ctype_digit( $item ) && (int) $item > 0 ) {
+				$output_r['term_ids'][] = (int) $item;
+			} else {
+				$output_r['slugs'][] = $item;
+			}
+		}
+
+		return $output_r;
+	}
+
 
 
 
@@ -481,14 +574,19 @@ class OCD_FilterPortfolio {
 				<li><strong>show_filters</strong>: 
 					<?php _e( 'Add buttons at the top for filtering by category.', 'ocdutils' ); ?> <?php _e( 'Default is', 'ocdutils' ) ?> <code>true</code>
 				</li>
-				<li><strong>category_slugs</strong>: 
-					<?php _e( 'A comma-separated list of category slugs from which to show items.', 'ocdutils' ); ?> 
+				<li><strong>categories</strong>: 
+					<?php _e( 'A comma-separated list of category slugs and/or ids from which to show items.', 'ocdutils' ); ?> 
+					<?php _e( 'Default is', 'ocdutils' ) ?> <code>""</code> (<?php _e( 'Show all', 'ocdutils' ) ?>)
+				</li>
+				<li><strong>projects</strong>: 
+					<?php _e( 'A comma-separated list of individual project ids to include. If this parameter is used, the "categories" parameter will be ignored.', 'ocdutils' ); ?> 
 					<?php _e( 'Default is', 'ocdutils' ) ?> <code>""</code> (<?php _e( 'Show all', 'ocdutils' ) ?>)
 				</li>
 			</ul>
 			<h4><?php _e( 'Shortcode Examples', 'ocdutils' ); ?></h4>
 			<p><code>[ocd_filter_portfolio]</code> <?php _e( 'All default settings. Use this on your main portfolio page.', 'ocdutils' ) ?></p>
-			<p><code>[ocd_filter_portfolio limit="6" show_filters="false" category_slugs="cat-abc, my-term-lmno, category-xyz"]</code> <?php _e( 'Use something like this on other pages.', 'ocdutils' ) ?></p>
+			<p><code>[ocd_filter_portfolio limit="6" show_filters="false" categories="cat-abc, 6, my-term-lmno, 9, category-xyz"]</code> <?php _e( 'Use something like this on other pages.', 'ocdutils' ) ?></p>
+			<p><code>[ocd_filter_portfolio show_filters="false" projects="42, 287, 314"]</code> <?php _e( 'Only show certain projects.', 'ocdutils' ) ?></p>
 			<p><code>[ocd_filter_portfolio limit="21" show_filters="true"]</code></p>
 			<p><?php _e( 'Use all attributes, or none, or mix-and-match. Any attributes omitted from the shortcode will use the default value.', 'ocdutils' ); ?></p>
 		</div>
@@ -581,7 +679,7 @@ class OCD_FilterPortfolio {
 							'id' => 'projects_tax_cats',
 							'label' => __( 'Project "Categories" Taxonomy', 'ocdutils' ),
 							'type' => 'select',
-							'description' => __( 'Choose the taxonomy from your "Post Type" that will be used for filtering. (This taxonomy is also used for the "category_slugs" shortcode attribute.)', 'ocdutils' ),
+							'description' => __( 'Choose the taxonomy from your "Post Type" that will be used for filtering. (This taxonomy is also used for the "categories" shortcode attribute.)', 'ocdutils' ),
 							'options' => array( '' => __( '--Select your "Categories" Taxonomy--', 'ocdutils' ) ),
 						),
 						array(
