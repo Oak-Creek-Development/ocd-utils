@@ -524,16 +524,21 @@ class OCD_FilterPortfolio {
 			'slugs'    => array(),
 		);
 
-		$items = array_map(
-			fn( $item ) => strtolower( trim( $item ) ),
-			explode( ',', $str )
+		$items = array_values(
+			array_filter(
+				array_map(
+					static fn( $item ) => strtolower( trim( $item ) ),
+					explode( ',', $str )
+				),
+				static fn( $item ) => ! empty( $item )
+			) 
 		);
 
 		foreach ( $items as $item ) {
 			if ( ctype_digit( $item ) && (int) $item > 0 ) {
 				$output_r['term_ids'][] = (int) $item;
 			} else {
-				$output_r['slugs'][] = $item;
+				$output_r['slugs'][] = sanitize_title( $item );
 			}
 		}
 
