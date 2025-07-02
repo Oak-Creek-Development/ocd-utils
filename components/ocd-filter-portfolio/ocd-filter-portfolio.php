@@ -344,7 +344,7 @@ class OCD_FilterPortfolio {
 										$project_description = get_the_content( null, false, $project );
 										if ( ! empty( $project_description ) ) {
 											$items .= '<h3 class="ocdfp-detail-section">'. esc_html__( 'Project Description', 'ocdutils' ) .'</h3>';
-											$items .= wpautop( $project_description );
+											$items .= apply_filters( 'the_content', $project_description );
 										}
 
 									$items .= '</div>';
