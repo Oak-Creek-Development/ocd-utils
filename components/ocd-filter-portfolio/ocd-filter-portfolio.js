@@ -39,7 +39,23 @@ jQuery(function ($) {
       (e.type.startsWith("pointer") || e.type === "click")
     ) {
       $el = $(e.target);
-      currentFilter = $el.attr("data-ocdfp-filter");
+
+      if (
+        !$el.closest(".ocdfp-wrapper").length &&
+        !$el.closest(".ocdfp-modal").length
+      ) {
+        const targetHash = e.target.hash ? e.target.hash.replace(/^#/, "") : "";
+        $(".ocdfp-wrapper").each(function () {
+          const $match = $(this)
+            .find(`[data-ocdfp-filter="${targetHash}"]`)
+            .first();
+          if ($match.length) {
+            $el = $match;
+            willScrollIntoView = true;
+            return false;
+          }
+        });
+      }
 
       $instance = $el.closest(".ocdfp-wrapper");
       if ($instance.length) {
@@ -48,6 +64,8 @@ jQuery(function ($) {
         instanceNum = $el.closest(".ocdfp-modal").attr("id").slice(-1);
         $instance = $("div#ocd-filter-portfolio-" + instanceNum);
       }
+
+      currentFilter = $el.attr("data-ocdfp-filter");
     } else {
       return false;
     }
@@ -206,6 +224,14 @@ jQuery(function ($) {
           }
         }
 
+        isotopeClick(e);
+      }
+    );
+
+    $("body").on(
+      "click",
+      "a[href*='#']:not([href='#']):not(.ocdfp-wrapper a)",
+      function (e) {
         isotopeClick(e);
       }
     );
